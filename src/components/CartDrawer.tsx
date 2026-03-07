@@ -1,7 +1,9 @@
 
+import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../hooks/useCart';
 import { ShoppingBag, X, Plus, Minus, Trash2 } from 'lucide-react';
+import { PayPalCheckoutButton } from './PayPalCheckoutButton';
 
 interface CartDrawerProps {
     isOpen: boolean;
@@ -10,6 +12,12 @@ interface CartDrawerProps {
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     const { items, removeItem, updateQuantity, subtotal } = useCart();
+
+    const initialOptions = {
+        "client-id": "test", // This will be passed via Env at runtime or hardcoded for sandbox
+        currency: "BRL",
+        intent: "capture",
+    };
 
     return (
         <AnimatePresence>
@@ -105,9 +113,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                             </div>
 
                             {items.length > 0 && (
-                                <button className="w-full h-16 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center hover:bg-blue-700 transition-colors">
-                                    Checkout com PayPal (Em breve)
-                                </button>
+                                <PayPalScriptProvider options={{
+                                    "client-id": import.meta.env.VITE_PAYPAL_CLIENT_ID || "test",
+                                    currency: "BRL",
+                                    intent: "capture"
+                                }}>
+                                    <div className="mt-4">
+                                        <PayPalCheckoutButton />
+                                    </div>
+                                </PayPalScriptProvider>
                             )}
 
                             <p className="text-center text-xs text-gray-400">
