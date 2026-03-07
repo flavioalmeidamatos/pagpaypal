@@ -118,7 +118,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
 
                             {items.length > 0 && (
                                 <PayPalScriptProvider options={{
-                                    clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "test",
+                                    clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID || "test").trim(),
                                     currency: "BRL",
                                     intent: "capture",
                                     "enable-funding": "paylater,venmo", // Habilita fluxos de crédito e outros modernos

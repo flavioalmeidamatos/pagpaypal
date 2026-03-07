@@ -3,18 +3,16 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const {
-  PAYPAL_CLIENT_ID,
-  PAYPAL_CLIENT_SECRET,
-  PAYPAL_API_URL = 'https://api-m.sandbox.paypal.com',
-} = process.env;
+const PAYPAL_CLIENT_ID = (process.env.PAYPAL_CLIENT_ID || '').trim();
+const PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
+const PAYPAL_API_URL = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
 
 /** 
  * Tipagem para erros amigáveis ao Antigravity 
  */
 interface PayPalError extends Error {
-    context?: any;
-    status?: number;
+  context?: any;
+  status?: number;
 }
 
 /**
@@ -26,21 +24,21 @@ export async function generateAccessToken() {
   }
 
   const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString("base64");
-  
+
   try {
-      const response = await axios({
-        url: `${PAYPAL_API_URL}/v1/oauth2/token`,
-        method: 'post',
-        data: "grant_type=client_credentials",
-        headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-      return response.data.access_token;
+    const response = await axios({
+      url: `${PAYPAL_API_URL}/v1/oauth2/token`,
+      method: 'post',
+      data: "grant_type=client_credentials",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+    return response.data.access_token;
   } catch (error: any) {
-      console.error('[PayPal SDK] Token Generation Failed:', error.response?.data || error.message);
-      throw error;
+    console.error('[PayPal SDK] Token Generation Failed:', error.response?.data || error.message);
+    throw error;
   }
 }
 
@@ -78,8 +76,8 @@ export async function createOrder(cartItems: any[]) {
       },
     ],
     application_context: {
-        user_action: "PAY_NOW",
-        shipping_preference: "NO_SHIPPING"
+      user_action: "PAY_NOW",
+      shipping_preference: "NO_SHIPPING"
     }
   };
 
