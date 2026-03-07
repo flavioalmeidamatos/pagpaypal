@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Product } from '../types/product';
 import { useCart } from '../hooks/useCart';

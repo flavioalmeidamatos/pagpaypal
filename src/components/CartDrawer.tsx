@@ -1,5 +1,6 @@
 
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../hooks/useCart';
 import { ShoppingBag, X, Plus, Minus, Trash2 } from 'lucide-react';
@@ -8,9 +9,10 @@ import { PayPalCheckoutButton } from './PayPalCheckoutButton';
 interface CartDrawerProps {
     isOpen: boolean;
     onClose: () => void;
+    onProductSelect: (product: any) => void;
 }
 
-export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
+export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProductSelect }) => {
     const { items, removeItem, updateQuantity, subtotal } = useCart();
 
 
@@ -54,14 +56,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                                 </div>
                             ) : (
                                 items.map((item) => (
-                                    <div key={item.id} className="flex gap-4">
-                                        <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-50">
+                                    <div
+                                        key={item.id}
+                                        className="flex gap-4 group/item cursor-pointer"
+                                        onClick={() => {
+                                            onProductSelect(item);
+                                            onClose();
+                                        }}
+                                    >
+                                        <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-50 group-hover/item:opacity-80 transition-opacity">
                                             <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
                                         </div>
                                         <div className="flex-grow">
-                                            <h4 className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</h4>
+                                            <h4 className="text-sm font-semibold text-gray-900 line-clamp-1 group-hover/item:text-rose-500 transition-colors">{item.name}</h4>
                                             <p className="text-xs text-gray-500">{item.brand}</p>
-                                            <div className="mt-2 flex items-center justify-between">
+                                            <div className="mt-2 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => updateQuantity(item.id, item.quantity - 1)}

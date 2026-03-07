@@ -76,6 +76,7 @@ const StoreContent = () => {
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
+        onProductSelect={setSelectedProduct}
       />
     </div>
   );
