@@ -3,6 +3,7 @@ import React from 'react';
 import { PayPalButtons } from "@paypal/react-paypal-js";
 import axios from 'axios';
 import { useCart } from '../hooks/useCart';
+import { supabase } from '../lib/supabase';
 
 export const PayPalCheckoutButton: React.FC = () => {
     const { items, clearCart } = useCart();
@@ -26,7 +27,20 @@ export const PayPalCheckoutButton: React.FC = () => {
             });
 
             if (response.data.status === 'COMPLETED') {
-                alert('Pagamento Realizado com Sucesso!');
+                // Registrar no Supabase para persistência (Modernização Fintech)
+                const { error: dbError } = await supabase
+                    .from('orders')
+                    .insert([{
+                        paypal_order_id: data.orderID,
+                        status: 'COMPLETED',
+                        amount: items.reduce((acc, item) => acc + item.price * item.quantity, 0),
+                        currency: 'BRL',
+                        customer_email: response.data.payer?.email_address || 'guest@example.com'
+                    }]);
+
+                if (dbError) console.error('[Supabase Error]', dbError);
+
+                alert('Pagamento Realizado com Sucesso e Registrado!');
                 clearCart();
             }
         } catch (error) {
