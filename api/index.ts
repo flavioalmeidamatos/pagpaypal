@@ -17,6 +17,11 @@ export default async function handler(req: any, res: any) {
 
     const { action } = req.query;
 
+    console.log('[API] Action:', action);
+    console.log('[API] Environment - ClientID exists:', !!process.env.PAYPAL_CLIENT_ID);
+    console.log('[API] Environment - Secret exists:', !!process.env.PAYPAL_CLIENT_SECRET);
+    console.log('[API] Environment - API URL:', process.env.PAYPAL_API_URL);
+
     try {
         if (req.method === 'POST') {
             if (action === 'create') {
