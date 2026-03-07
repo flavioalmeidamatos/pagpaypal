@@ -3,7 +3,7 @@ import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../hooks/useCart';
-import { ShoppingBag, X, Plus, Minus, Trash2 } from 'lucide-react';
+import { ShoppingBag, X, Plus, Minus } from 'lucide-react';
 import { PayPalCheckoutButton } from './PayPalCheckoutButton';
 
 interface CartDrawerProps {
@@ -166,7 +166,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                     </div>
 
                                     {/* Botões PayPal com Espaçamento Ajustado */}
-                                    <div className="space-y-4">
+                                    <div className="space-y-6 pt-2">
                                         <PayPalScriptProvider options={{
                                             clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID || "test").trim(),
                                             currency: "BRL",
@@ -174,7 +174,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                             "enable-funding": "paylater,venmo",
                                             components: "buttons,marks"
                                         }}>
-                                            <div className="min-h-[160px] relative">
+                                            <div className="min-h-[180px] relative px-1">
                                                 <PayPalCheckoutButton />
                                             </div>
                                         </PayPalScriptProvider>
