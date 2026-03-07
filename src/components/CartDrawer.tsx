@@ -15,16 +15,27 @@ interface CartDrawerProps {
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProductSelect }) => {
     const { items, removeItem, updateQuantity, subtotal } = useCart();
 
+    // Bloquear scroll do body quando o carrinho estiver aberto
+    React.useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
 
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[60] overflow-hidden">
+                <div className="fixed inset-0 z-[60] flex justify-end">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
                         onClick={onClose}
                     />
 
@@ -33,9 +44,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                         animate={{ x: 0 }}
                         exit={{ x: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl overflow-hidden flex flex-col"
+                        className="relative h-full w-full max-w-md bg-white shadow-2xl flex flex-col z-[70]"
                     >
-                        <div className="p-6 flex items-center justify-between border-b">
+                        {/* Header Fixo */}
+                        <div className="p-6 flex items-center justify-between border-b bg-white shrink-0">
                             <h2 className="text-2xl font-bold flex items-center gap-3">
                                 <ShoppingBag className="text-rose-500" />
                                 Seu Carrinho
@@ -48,91 +60,102 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                             </button>
                         </div>
 
-                        <div className="flex-grow overflow-y-auto p-6 space-y-6">
-                            {items.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-                                    <ShoppingBag size={64} strokeWidth={1} />
-                                    <p>Seu carrinho está vazio</p>
-                                </div>
-                            ) : (
-                                items.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="flex gap-4 group/item cursor-pointer"
-                                        onClick={() => {
-                                            onProductSelect(item);
-                                            onClose();
-                                        }}
-                                    >
-                                        <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-50 group-hover/item:opacity-80 transition-opacity">
-                                            <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-                                        </div>
-                                        <div className="flex-grow">
-                                            <h4 className="text-sm font-semibold text-gray-900 line-clamp-1 group-hover/item:text-rose-500 transition-colors">{item.name}</h4>
-                                            <p className="text-xs text-gray-500">{item.brand}</p>
-                                            <div className="mt-2 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                                                <div className="flex items-center gap-2">
+                        {/* Área Rolável (Produtos e Checkout) */}
+                        <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+                            <div className="p-6 space-y-6">
+                                {items.length === 0 ? (
+                                    <div className="py-20 flex flex-col items-center justify-center text-gray-400 space-y-4">
+                                        <ShoppingBag size={64} strokeWidth={1} />
+                                        <p>Seu carrinho está vazio</p>
+                                    </div>
+                                ) : (
+                                    items.map((item) => (
+                                        <div
+                                            key={item.id}
+                                            className="flex gap-4 group/item cursor-pointer"
+                                            onClick={() => {
+                                                onProductSelect(item);
+                                                onClose();
+                                            }}
+                                        >
+                                            <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-50 group-hover/item:opacity-80 transition-opacity">
+                                                <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                                            </div>
+                                            <div className="flex-grow">
+                                                <h4 className="text-sm font-semibold text-gray-900 line-clamp-1 group-hover/item:text-rose-500 transition-colors">{item.name}</h4>
+                                                <p className="text-xs text-gray-500">{item.brand}</p>
+                                                <div className="mt-2 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                            className="p-1 rounded-md bg-gray-100 hover:bg-gray-200 cursor-pointer"
+                                                        >
+                                                            <Minus size={14} />
+                                                        </button>
+                                                        <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
+                                                        <button
+                                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                            className="p-1 rounded-md bg-gray-100 hover:bg-gray-200 cursor-pointer"
+                                                        >
+                                                            <Plus size={14} />
+                                                        </button>
+                                                    </div>
+                                                    <p className="font-bold text-gray-900">
+                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
+                                                    </p>
                                                     <button
-                                                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                        className="p-1 rounded-md bg-gray-100 hover:bg-gray-200 cursor-pointer"
+                                                        onClick={() => removeItem(item.id)}
+                                                        className="p-2 text-red-400 hover:text-red-600 transition-colors cursor-pointer"
                                                     >
-                                                        <Minus size={14} />
-                                                    </button>
-                                                    <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
-                                                    <button
-                                                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                        className="p-1 rounded-md bg-gray-100 hover:bg-gray-200 cursor-pointer"
-                                                    >
-                                                        <Plus size={14} />
+                                                        <Trash2 size={16} />
                                                     </button>
                                                 </div>
-                                                <p className="font-bold">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
-                                                </p>
-                                                <button
-                                                    onClick={() => removeItem(item.id)}
-                                                    className="p-2 text-red-400 hover:text-red-600 transition-colors cursor-pointer"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
                                             </div>
                                         </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        <div className="p-8 border-t bg-gray-50 space-y-4">
-                            <div className="flex items-center justify-between text-lg">
-                                <span className="text-gray-600">Subtotal</span>
-                                <span className="font-semibold">
-                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotal)}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between text-2xl font-bold">
-                                <span>Total</span>
-                                <span>
-                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotal)}
-                                </span>
+                                    ))
+                                )}
                             </div>
 
+                            {/* Seção de Resumo e Pagamento (Destaque) */}
                             {items.length > 0 && (
-                                <PayPalScriptProvider options={{
-                                    clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID || "test").trim(),
-                                    currency: "BRL",
-                                    intent: "capture",
-                                    "enable-funding": "paylater,venmo", // Habilita fluxos de crédito e outros modernos
-                                    components: "buttons,marks"
-                                }}>
-                                    <div className="mt-4">
-                                        <PayPalCheckoutButton />
+                                <div className="p-6 border-t bg-gray-50/50 mt-auto">
+                                    <div className="space-y-3 mb-6">
+                                        <div className="flex items-center justify-between text-base text-gray-600">
+                                            <span>Subtotal</span>
+                                            <span>
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotal)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xl font-bold text-gray-900">
+                                            <span>Total do Pedido</span>
+                                            <span>
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotal)}
+                                            </span>
+                                        </div>
                                     </div>
-                                </PayPalScriptProvider>
-                            )}
 
-                            <p className="text-center text-xs text-gray-400">
-                                Pagamento seguro via PayPal
-                            </p>
+                                    <PayPalScriptProvider options={{
+                                        clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID || "test").trim(),
+                                        currency: "BRL",
+                                        intent: "capture",
+                                        "enable-funding": "paylater,venmo",
+                                        components: "buttons,marks"
+                                    }}>
+                                        <div className="min-h-[150px]">
+                                            <PayPalCheckoutButton />
+                                        </div>
+                                    </PayPalScriptProvider>
+
+                                    <div className="mt-6 flex flex-col items-center gap-2">
+                                        <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                                            Ambiente totalmente seguro e criptografado
+                                        </p>
+                                        <div className="flex gap-4 opacity-50 grayscale">
+                                            {/* Ícones de cartões podem ser adicionados aqui se necessário */}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 </div>
