@@ -9,6 +9,14 @@ const {
   PAYPAL_API_URL = 'https://api-m.sandbox.paypal.com',
 } = process.env;
 
+/** 
+ * Tipagem para erros amigáveis ao Antigravity 
+ */
+interface PayPalError extends Error {
+    context?: any;
+    status?: number;
+}
+
 /**
  * Gera um token de acesso OAuth 2.0 do PayPal
  */
@@ -19,17 +27,21 @@ export async function generateAccessToken() {
 
   const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString("base64");
   
-  const response = await axios({
-    url: `${PAYPAL_API_URL}/v1/oauth2/token`,
-    method: 'post',
-    data: "grant_type=client_credentials",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-  });
-
-  return response.data.access_token;
+  try {
+      const response = await axios({
+        url: `${PAYPAL_API_URL}/v1/oauth2/token`,
+        method: 'post',
+        data: "grant_type=client_credentials",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      return response.data.access_token;
+  } catch (error: any) {
+      console.error('[PayPal SDK] Token Generation Failed:', error.response?.data || error.message);
+      throw error;
+  }
 }
 
 /**

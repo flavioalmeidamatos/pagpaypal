@@ -13,11 +13,6 @@ interface CartDrawerProps {
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     const { items, removeItem, updateQuantity, subtotal } = useCart();
 
-    const initialOptions = {
-        "client-id": "test", // This will be passed via Env at runtime or hardcoded for sandbox
-        currency: "BRL",
-        intent: "capture",
-    };
 
     return (
         <AnimatePresence>
@@ -114,9 +109,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
                             {items.length > 0 && (
                                 <PayPalScriptProvider options={{
-                                    "client-id": import.meta.env.VITE_PAYPAL_CLIENT_ID || "test",
+                                    clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "test",
                                     currency: "BRL",
-                                    intent: "capture"
+                                    intent: "capture",
+                                    "enable-funding": "paylater,venmo", // Habilita fluxos de crédito e outros modernos
+                                    components: "buttons,marks"
                                 }}>
                                     <div className="mt-4">
                                         <PayPalCheckoutButton />

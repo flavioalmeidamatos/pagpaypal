@@ -36,16 +36,27 @@ export const PayPalCheckoutButton: React.FC = () => {
     };
 
     return (
-        <PayPalButtons
-            style={{
-                layout: "vertical",
-                color: "blue",
-                shape: "pill",
-                label: "checkout",
-                height: 55
-            }}
-            createOrder={createOrder}
-            onApprove={onApprove}
-        />
+        <div className="w-full space-y-4">
+            <PayPalButtons
+                style={{
+                    layout: "vertical",
+                    color: "gold",
+                    shape: "rect",
+                    label: "pay",
+                    height: 50
+                }}
+                createOrder={createOrder}
+                onApprove={onApprove}
+                onError={(err) => {
+                    console.error('[PayPal UI Error]', err);
+                }}
+            />
+            {/* Opcional: Adicionar Badge de Compra Segura conforme boas práticas */}
+            <div className="flex items-center justify-center gap-2 opacity-50 grayscale hover:grayscale-0 transition-all cursor-default">
+                <span className="text-[10px] font-medium tracking-tight uppercase">Ambiente Seguro</span>
+                <div className="w-px h-3 bg-gray-300" />
+                <img src="https://www.paypalobjects.com/webstatic/mktg/logo-center/PP_Acceptance_Marks_for_LogoCenter_266x142.png" className="h-4" alt="PayPal" />
+            </div>
+        </div>
     );
 };
