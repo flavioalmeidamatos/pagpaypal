@@ -95,16 +95,27 @@ async function captureOrder(orderID: string) {
     const accessToken = await generateAccessToken();
     const url = `${PAYPAL_API_URL}/v2/checkout/orders/${orderID}/capture`;
 
-    const response = await axios({
-        url,
-        method: 'post',
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-        },
-    });
+    console.log('[PayPal] Enviando requisição de captura:', url);
 
-    return response.data;
+    try {
+        const response = await axios({
+            url,
+            method: 'post',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        console.log('[PayPal] Resposta de captura recebida:', response.status);
+        return response.data;
+    } catch (error: any) {
+        console.error('[PayPal SDK] Capture Failed:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message
+        });
+        throw error;
+    }
 }
 
 /**

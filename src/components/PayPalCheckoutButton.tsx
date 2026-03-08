@@ -22,30 +22,41 @@ export const PayPalCheckoutButton: React.FC = () => {
 
     const onApprove = async (data: any) => {
         try {
+            console.log('[PayPal] Iniciando captura da ordem:', data.orderID);
             const response = await axios.post('/api?action=capture', {
                 orderID: data.orderID
             });
 
+            console.log('[PayPal] Resposta do backend (capture):', response.data);
+
             if (response.data.status === 'COMPLETED') {
                 // Registrar no Supabase para persistência (Modernização Fintech)
+                const orderData = {
+                    paypal_order_id: data.orderID,
+                    status: 'COMPLETED',
+                    amount: items.reduce((acc, item) => acc + item.price * item.quantity, 0),
+                    currency: 'BRL',
+                    customer_email: response.data.payer?.email_address || 'guest@example.com'
+                };
+
                 const { error: dbError } = await supabase
                     .from('orders')
-                    .insert([{
-                        paypal_order_id: data.orderID,
-                        status: 'COMPLETED',
-                        amount: items.reduce((acc, item) => acc + item.price * item.quantity, 0),
-                        currency: 'BRL',
-                        customer_email: response.data.payer?.email_address || 'guest@example.com'
-                    }]);
+                    .insert([orderData]);
 
-                if (dbError) console.error('[Supabase Error]', dbError);
+                if (dbError) {
+                    console.error('[Supabase Error]', dbError);
+                }
 
                 alert('Pagamento Realizado com Sucesso e Registrado!');
                 clearCart();
+            } else {
+                console.warn('[PayPal] Ordem aprovada mas status não é COMPLETED:', response.data.status);
+                alert(`O pagamento foi autorizado mas está com status: ${response.data.status}. Verifique sua conta PayPal.`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error capturing order:', error);
-            alert('Erro ao processar pagamento. Por favor, tente novamente.');
+            const errorMsg = error.response?.data?.details?.message || error.message || 'Erro desconhecido';
+            alert(`Erro ao processar pagamento: ${errorMsg}\nPor favor, tente novamente.`);
         }
     };
 
