@@ -59,8 +59,16 @@ export const PayPalCheckoutButton: React.FC = () => {
             }
         } catch (error: any) {
             console.error('Error capturing order:', error);
-            const errorMsg = error.response?.data?.details?.message || error.message || 'Erro desconhecido';
-            alert(`Erro ao processar pagamento: ${errorMsg}\nPor favor, tente novamente.`);
+            const backendDetails = error.response?.data?.details;
+            let specificError = '';
+
+            if (backendDetails && Array.isArray(backendDetails.details) && backendDetails.details.length > 0) {
+                const issue = backendDetails.details[0];
+                specificError = `${issue.issue}: ${issue.description}`;
+            }
+
+            const errorMsg = specificError || backendDetails?.message || error.message || 'Erro desconhecido';
+            alert(`Erro ao processar pagamento:\n\n${errorMsg}\n\nPor favor, tente novamente ou verifique as restrições da sua conta Sandbox.`);
         }
     };
 
