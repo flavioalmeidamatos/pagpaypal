@@ -39,12 +39,16 @@ export const PayPalCheckoutButton: React.FC = () => {
                     customer_email: response.data.payer?.email_address || 'guest@example.com'
                 };
 
-                const { error: dbError } = await supabase
-                    .from('orders')
-                    .insert([orderData]);
+                try {
+                    const { error: dbError } = await supabase
+                        .from('orders')
+                        .insert([orderData]);
 
-                if (dbError) {
-                    console.error('[Supabase Error]', dbError);
+                    if (dbError) {
+                        console.error('[Supabase Error]', dbError);
+                    }
+                } catch (dbEx) {
+                    console.error('[Supabase Exception]', dbEx);
                 }
 
                 alert('Pagamento Realizado com Sucesso e Registrado!');
