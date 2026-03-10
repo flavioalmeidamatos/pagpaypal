@@ -148,6 +148,7 @@ async function createPixOrder(cartItems: any[], payer: any, baseUrl: string) {
         headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
+            'PayPal-Request-Id': Date.now().toString(),
         },
         data: JSON.stringify(payload),
     });
@@ -221,6 +222,7 @@ async function createBoletoOrder(cartItems: any[], payer: any, baseUrl: string) 
         headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
+            'PayPal-Request-Id': Date.now().toString(),
         },
         data: JSON.stringify(payload),
     });
