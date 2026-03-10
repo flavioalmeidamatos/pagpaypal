@@ -7,7 +7,7 @@ type PaymentMethod = 'pix' | 'boleto' | null;
 type FlowStatus = 'idle' | 'form' | 'loading' | 'qrcode' | 'boleto-link' | 'success' | 'error';
 
 export const PixBoletoCheckout: React.FC = () => {
-    const { items, clearCart } = useCart();
+    const { items } = useCart();
     const [method, setMethod] = useState<PaymentMethod>(null);
     const [status, setStatus] = useState<FlowStatus>('idle');
     const [errorMsg, setErrorMsg] = useState('');
@@ -226,10 +226,10 @@ export const PixBoletoCheckout: React.FC = () => {
                     onClick={handleSubmit}
                     disabled={!isFormValid}
                     className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all cursor-pointer min-h-[48px] ${isFormValid
-                            ? method === 'pix'
-                                ? 'bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800'
-                                : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        ? method === 'pix'
+                            ? 'bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800'
+                            : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         }`}
                 >
                     {method === 'pix' ? 'Gerar QR Code Pix' : 'Gerar Boleto'}
@@ -284,8 +284,8 @@ export const PixBoletoCheckout: React.FC = () => {
                         <button
                             onClick={copyPixCode}
                             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-[80px] ${copiedPix
-                                    ? 'bg-teal-100 text-teal-700'
-                                    : 'bg-teal-600 text-white hover:bg-teal-700'
+                                ? 'bg-teal-100 text-teal-700'
+                                : 'bg-teal-600 text-white hover:bg-teal-700'
                                 }`}
                         >
                             {copiedPix ? '✓ Copiado' : 'Copiar'}
