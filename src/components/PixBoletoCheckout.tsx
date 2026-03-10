@@ -139,14 +139,13 @@ export const PixBoletoCheckout: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3">
                     <button
                         onClick={() => selectMethod('pix')}
-                        className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-gray-200 bg-white hover:border-teal-500 hover:bg-teal-50/30 transition-all cursor-pointer group min-h-[48px]"
+                        className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-gray-200 bg-white hover:border-[#32BCAD] hover:bg-[#32BCAD]/5 transition-all cursor-pointer group min-h-[48px]"
                     >
-                        <svg viewBox="0 0 100 100" className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none">
-                            <path d="M50 0L24.4 25.6 0 50l24.4 24.4L50 100l25.6-25.6L100 50 75.6 24.4 50 0z" fill="#32BCAD" />
-                            <path d="M50 13.9L31.1 32.8 13.9 50l17.2 17.2L50 86.1l18.9-18.9L86.1 50 68.9 32.8 50 13.9z" fill="#FFF" />
-                            <path d="M50 25.7L38.4 37.3 25.7 50l12.7 12.7L50 74.3l11.6-11.6L74.3 50 61.6 38.4 50 25.7z" fill="#32BCAD" />
+                        <svg viewBox="0 0 512 512" className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none">
+                            <path d="M331.6 156.4c-5.4-5.4-14.1-5.4-19.5 0l-71.1 71.1-71.1-71.1c-5.4-5.4-14.1-5.4-19.5 0l-71.1 71.1c-5.4 5.4-5.4 14.1 0 19.5l71.1 71.1-71.1 71.1c-5.4 5.4-5.4 14.1 0 19.5l71.1 71.1c5.4 5.4 14.1 5.4 19.5 0l71.1-71.1 71.1 71.1c5.4 5.4 14.1 5.4 19.5 0l71.1-71.1c5.4-5.4 5.4-14.1 0-19.5l-71.1-71.1 71.1-71.1c5.4-5.4 5.4-14.1 0-19.5l-71.1-71.1z" fill="#32BCAD" />
+                            <path d="M256 0L103.3 152.7 0 256l103.3 103.3L256 512l152.7-152.7L512 256 408.7 152.7 256 0zm197.4 256L256 453.4 58.6 256 256 58.6 453.4 256z" fill="#32BCAD" />
                         </svg>
-                        <span className="text-sm font-semibold text-gray-800">Pix</span>
+                        <span className="text-sm font-bold text-gray-800">Pix</span>
                     </button>
                     <button
                         onClick={() => selectMethod('boleto')}
