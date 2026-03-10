@@ -96,13 +96,22 @@ export const PixBoletoCheckout: React.FC = () => {
             });
 
             // Tenta extrair a mensagem amigável do PayPal
-            const paypalData = error.response?.data?.details || error.response?.data;
+            const resData = error.response?.data;
             let msg = '';
 
-            if (paypalData?.details && Array.isArray(paypalData.details)) {
-                msg = paypalData.details.map((d: any) => `${d.issue}: ${d.description}`).join(' | ');
-            } else if (paypalData?.message) {
-                msg = paypalData.message;
+            if (resData?.details && Array.isArray(resData.details)) {
+                // Checar erro comum de source não suportado
+                const hasUnsupportedSource = resData.details.some(
+                    (d: any) => d.issue === 'PAYMENT_SOURCE_CANNOT_BE_USED' || d.issue === 'NOT_ENABLED_FOR_PAYMENT_SOURCE'
+                );
+
+                if (hasUnsupportedSource) {
+                    msg = `Pagamento via ${method === 'pix' ? 'Pix' : 'Boleto'} não autorizado para esta conta do PayPal. Verifique as configurações do painel de desenvolvedor.`;
+                } else {
+                    msg = resData.details.map((d: any) => `${d.issue}: ${d.description || d.field}`).join(' | ');
+                }
+            } else if (resData?.message) {
+                msg = resData.message;
             } else {
                 msg = error.message || 'Erro inesperado ao processar pagamento.';
             }

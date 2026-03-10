@@ -124,14 +124,17 @@ async function createPixOrder(cartItems: any[], payer: any, baseUrl: string) {
         ],
         payment_source: {
             pix: {
-                name: {
-                    given_name: payer.given_name || "Cliente",
-                    surname: payer.surname || "PayPal"
-                },
+                name: `${payer.given_name || 'Cliente'} ${payer.surname || 'PayPal'}`.trim(),
                 email: payer.email || "cliente@email.com",
                 tax_info: {
                     tax_id: payer.cpf.replace(/\D/g, ''),
                     tax_id_type: "BR_CPF"
+                },
+                country_code: "BR",
+                currency_code: "BRL",
+                phone: {
+                    country_code: "55",
+                    national_number: "11999999999"
                 }
             }
         }
@@ -187,15 +190,24 @@ async function createBoletoOrder(cartItems: any[], payer: any, baseUrl: string) 
             }
         ],
         payment_source: {
-            boleto: {
-                name: {
-                    given_name: payer.given_name || "Cliente",
-                    surname: payer.surname || "PayPal"
-                },
+            boletobancario: {
+                name: `${payer.given_name || 'Cliente'} ${payer.surname || 'PayPal'}`.trim(),
                 email: payer.email || "cliente@email.com",
                 tax_info: {
                     tax_id: payer.cpf.replace(/\D/g, ''),
                     tax_id_type: "BR_CPF"
+                },
+                country_code: "BR",
+                currency_code: "BRL",
+                phone: {
+                    country_code: "55",
+                    national_number: "11999999999"
+                },
+                billing_address: {
+                    address_line_1: "Endereço não informado",
+                    admin_area_2: "São Paulo",
+                    admin_area_1: "SP",
+                    postal_code: "01000000"
                 }
             }
         }
