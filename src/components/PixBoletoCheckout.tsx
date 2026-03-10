@@ -97,21 +97,27 @@ export const PixBoletoCheckout: React.FC = () => {
 
             // Tenta extrair a mensagem amigável do PayPal
             const resData = error.response?.data;
+            const paypalError = resData?.details || {}; // Isso contém o payload direto do PayPal retornado pelo nosso backend
             let msg = '';
 
-            if (resData?.details && Array.isArray(resData.details)) {
+            // O PayPal costuma retornar os erros reais em uma array 'details' dentro do payload de erro
+            const errorList = Array.isArray(paypalError) ? paypalError : (Array.isArray(paypalError.details) ? paypalError.details : []);
+
+            if (errorList && errorList.length > 0) {
                 // Checar erro comum de source não suportado
-                const hasUnsupportedSource = resData.details.some(
+                const hasUnsupportedSource = errorList.some(
                     (d: any) => d.issue === 'PAYMENT_SOURCE_CANNOT_BE_USED' || d.issue === 'NOT_ENABLED_FOR_PAYMENT_SOURCE'
                 );
 
                 if (hasUnsupportedSource) {
                     msg = `Pagamento via ${method === 'pix' ? 'Pix' : 'Boleto'} não autorizado para esta conta do PayPal. Verifique as configurações do painel de desenvolvedor.`;
                 } else {
-                    msg = resData.details.map((d: any) => `${d.issue}: ${d.description || d.field}`).join(' | ');
+                    msg = errorList.map((d: any) => `${d.issue}: ${d.description || d.field}`).join(' | ');
                 }
-            } else if (resData?.message) {
-                msg = resData.message;
+            } else if (paypalError?.message) {
+                msg = paypalError.message;
+            } else if (resData?.error) {
+                msg = resData.error; // Como "Request failed with status code 422"
             } else {
                 msg = error.message || 'Erro inesperado ao processar pagamento.';
             }
