@@ -128,16 +128,10 @@ async function createPixOrder(cartItems: any[], payer: any, baseUrl: string) {
                     given_name: payer.given_name || "Cliente",
                     surname: payer.surname || "PayPal"
                 },
-                email_address: payer.email || "cliente@email.com",
+                email: payer.email || "cliente@email.com",
                 tax_info: {
                     tax_id: payer.cpf.replace(/\D/g, ''),
                     tax_id_type: "BR_CPF"
-                },
-                experience_context: {
-                    return_url: `${baseUrl}?payment=success`,
-                    cancel_url: `${baseUrl}?payment=cancelled`,
-                    locale: "pt-BR",
-                    user_action: "PAY_NOW"
                 }
             }
         }
@@ -198,15 +192,10 @@ async function createBoletoOrder(cartItems: any[], payer: any, baseUrl: string) 
                     given_name: payer.given_name || "Cliente",
                     surname: payer.surname || "PayPal"
                 },
-                email_address: payer.email || "cliente@email.com",
+                email: payer.email || "cliente@email.com",
                 tax_info: {
                     tax_id: payer.cpf.replace(/\D/g, ''),
                     tax_id_type: "BR_CPF"
-                },
-                experience_context: {
-                    return_url: `${baseUrl}?payment=success`,
-                    cancel_url: `${baseUrl}?payment=cancelled`,
-                    locale: "pt-BR"
                 }
             }
         }
