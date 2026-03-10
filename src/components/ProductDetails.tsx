@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Product } from '../types/product';
 import { useCart } from '../hooks/useCart';
@@ -70,9 +71,9 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onClose
                                             addItem(product);
                                             onClose();
                                         }}
-                                        className="flex items-center gap-3 rounded-xl bg-gray-900 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 cursor-pointer"
+                                        className="flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white transition-all hover:bg-gray-800 cursor-pointer whitespace-nowrap h-fit"
                                     >
-                                        <ShoppingBag size={20} />
+                                        <ShoppingBag size={18} />
                                         <span>Adicionar ao Carrinho</span>
                                     </motion.button>
                                 </div>
