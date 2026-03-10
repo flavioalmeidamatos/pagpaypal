@@ -139,12 +139,14 @@ export const PixBoletoCheckout: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3">
                     <button
                         onClick={() => selectMethod('pix')}
-                        className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border-2 border-gray-100 bg-white hover:border-teal-400 hover:bg-teal-50/50 transition-all cursor-pointer group min-h-[52px]"
+                        className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-gray-200 bg-white hover:border-teal-500 hover:bg-teal-50/30 transition-all cursor-pointer group min-h-[48px]"
                     >
-                        <svg viewBox="0 0 512 512" className="w-5 h-5 text-teal-600 group-hover:scale-110 transition-transform" fill="currentColor">
-                            <path d="M242.4 292.5C247.8 287.1 257.1 287.1 262.5 292.5L339.5 369.5C353.7 383.7 372.5 391.5 392.5 391.5H407.7L310.6 488.6C280.3 518.9 231.1 518.9 200.8 488.6L103.3 391.2H112.6C132.6 391.2 151.5 383.4 165.7 369.2L242.4 292.5zM ## 165.7 142.8C151.5 128.6 132.6 120.8 112.6 120.8H103.3L200.7 23.38C231 -6.943 280.3 -6.943 310.6 23.38L407.8 120.6H392.5C372.5 120.6 353.7 128.4 339.5 142.6L262.5 219.5C257.1 224.9 247.8 224.9 242.4 219.5L165.7 142.8zM464.6 164.6L407.1 222C399.5 229.6 399.5 282.4 407.1 289.1L464.6 347.4C494.9 377.7 494.9 426.9 464.6 457.2L441.5 480.3C434.8 487 423.7 487 417 480.3L310.6 374C296.4 359.8 277.5 352 257.5 352H254.5C234.5 352 215.5 359.8 201.4 374L94.97 480.3C88.27 487 77.15 487 70.45 480.3L47.38 457.2C17.13 426.9 17.13 377.7 47.38 347.4L104.9 289.1C112.5 282.4 112.5 229.6 104.9 222L47.38 164.6C17.13 134.3 17.13 85.13 47.38 54.88L70.45 31.81C77.15 25.11 88.27 25.11 94.97 31.81L201.4 138.2C215.6 152.4 234.5 160.2 254.5 160.2H257.5C277.5 160.2 296.4 152.4 310.6 138.2L417 31.81C423.7 25.11 434.8 25.11 441.5 31.81L464.6 54.88C494.9 85.13 494.9 134.3 464.6 164.6z" />
+                        <svg viewBox="0 0 100 100" className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none">
+                            <path d="M50 0L24.4 25.6 0 50l24.4 24.4L50 100l25.6-25.6L100 50 75.6 24.4 50 0z" fill="#32BCAD" />
+                            <path d="M50 13.9L31.1 32.8 13.9 50l17.2 17.2L50 86.1l18.9-18.9L86.1 50 68.9 32.8 50 13.9z" fill="#FFF" />
+                            <path d="M50 25.7L38.4 37.3 25.7 50l12.7 12.7L50 74.3l11.6-11.6L74.3 50 61.6 38.4 50 25.7z" fill="#32BCAD" />
                         </svg>
-                        <span className="text-sm font-bold text-gray-700">Pix</span>
+                        <span className="text-sm font-semibold text-gray-800">Pix</span>
                     </button>
                     <button
                         onClick={() => selectMethod('boleto')}

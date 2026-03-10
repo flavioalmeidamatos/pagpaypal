@@ -71,9 +71,9 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onClose
                                             addItem(product);
                                             onClose();
                                         }}
-                                        className="flex items-center gap-3 rounded-2xl bg-gray-900 px-8 py-4 text-white shadow-xl shadow-gray-200 transition-all hover:bg-gray-800 cursor-pointer"
+                                        className="flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white transition-all hover:bg-gray-800 cursor-pointer whitespace-nowrap h-fit"
                                     >
-                                        <ShoppingBag size={20} />
+                                        <ShoppingBag size={18} />
                                         <span>Adicionar ao Carrinho</span>
                                     </motion.button>
                                 </div>
