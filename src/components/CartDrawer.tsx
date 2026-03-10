@@ -1,10 +1,11 @@
 
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../hooks/useCart';
-import { ShoppingBag, X, Plus, Minus } from 'lucide-react';
+import { ShoppingBag, X, Plus, Minus, ChevronDown, QrCode } from 'lucide-react';
 import { PayPalCheckoutButton } from './PayPalCheckoutButton';
+import { PixBoletoCheckout } from './PixBoletoCheckout';
 
 interface CartDrawerProps {
     isOpen: boolean;
@@ -14,6 +15,7 @@ interface CartDrawerProps {
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProductSelect }) => {
     const { items, removeItem, updateQuantity, subtotal } = useCart();
+    const [showPixBoleto, setShowPixBoleto] = useState(false);
 
     // Bloqueio de scroll robusto (Modern Fintech UX)
     React.useEffect(() => {
@@ -165,8 +167,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                         </div>
                                     </div>
 
-                                    {/* Botões PayPal com Espaçamento Ajustado */}
-                                    <div className="space-y-6 pt-2">
+                                    {/* Botões PayPal */}
+                                    <div className="space-y-4 pt-2">
                                         <PayPalScriptProvider options={{
                                             clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID || "test").trim(),
                                             currency: "BRL",
@@ -174,10 +176,52 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                             "enable-funding": "paylater,venmo",
                                             components: "buttons,marks"
                                         }}>
-                                            <div className="min-h-[180px] relative px-1">
+                                            <div className="min-h-[160px] relative px-1">
                                                 <PayPalCheckoutButton />
                                             </div>
                                         </PayPalScriptProvider>
+
+                                        {/* Divisor */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 h-px bg-gray-100" />
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ou</span>
+                                            <div className="flex-1 h-px bg-gray-100" />
+                                        </div>
+
+                                        {/* Pix / Boleto — Acordeão */}
+                                        <div className="rounded-2xl border border-gray-100 overflow-hidden">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPixBoleto(v => !v)}
+                                                className="w-full flex items-center justify-between px-4 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+                                            >
+                                                <span className="flex items-center gap-2 text-sm font-bold text-gray-700">
+                                                    <QrCode size={16} className="text-green-600" />
+                                                    Pix ou Boleto Bancário
+                                                </span>
+                                                <ChevronDown
+                                                    size={16}
+                                                    className={`text-gray-400 transition-transform duration-200 ${showPixBoleto ? 'rotate-180' : ''}`}
+                                                />
+                                            </button>
+
+                                            <AnimatePresence initial={false}>
+                                                {showPixBoleto && (
+                                                    <motion.div
+                                                        key="pix-boleto"
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <div className="p-4">
+                                                            <PixBoletoCheckout />
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
                                     </div>
 
                                     <div className="mt-8 flex flex-col items-center gap-3">
