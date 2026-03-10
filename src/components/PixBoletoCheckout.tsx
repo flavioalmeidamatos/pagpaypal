@@ -1,192 +1,363 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useCart } from '../hooks/useCart';
 import { supabase } from '../lib/supabase';
-import { QrCode, FileText, Copy, Check } from 'lucide-react';
 
-type Method = 'pix' | 'boleto';
-type Step = 'form' | 'qrcode' | 'boleto_redirect' | 'success' | 'error';
-
-interface PayerForm {
-    given_name: string;
-    surname: string;
-    email: string;
-    cpf: string;
-}
-
-// Formata CPF: 000.000.000-00
-function formatCPF(value: string): string {
-    const digits = value.replace(/\D/g, '').slice(0, 11);
-    return digits
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-}
-
-interface PixResult {
-    orderId: string;
-    pixCode: string;
-    pixImageUrl: string;
-    expiresAt: string;
-}
-
-interface BoletoResult {
-    orderId: string;
-    boletoUrl: string;
-}
+type PaymentMethod = 'pix' | 'boleto' | null;
+type FlowStatus = 'idle' | 'form' | 'loading' | 'qrcode' | 'boleto-link' | 'success' | 'error';
 
 export const PixBoletoCheckout: React.FC = () => {
     const { items, clearCart } = useCart();
-    const [method, setMethod] = useState<Method>('pix');
-    const [step, setStep] = useState<Step>('form');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [copied, setCopied] = useState(false);
-    const [pixResult, setPixResult] = useState<PixResult | null>(null);
-    const [boletoResult, setBoletoResult] = useState<BoletoResult | null>(null);
+    const [method, setMethod] = useState<PaymentMethod>(null);
+    const [status, setStatus] = useState<FlowStatus>('idle');
+    const [errorMsg, setErrorMsg] = useState('');
 
-    const [payer, setPayer] = useState<PayerForm>({
-        given_name: '',
-        surname: '',
-        email: '',
-        cpf: ''
-    });
+    // Payer form
+    const [givenName, setGivenName] = useState('');
+    const [surname, setSurname] = useState('');
+    const [email, setEmail] = useState('');
+    const [cpf, setCpf] = useState('');
 
-    const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const totalFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
+    // Pix results
+    const [pixQrImage, setPixQrImage] = useState('');
+    const [pixCode, setPixCode] = useState('');
+    const [copiedPix, setCopiedPix] = useState(false);
 
-    const handleChange = (field: keyof PayerForm, value: string) => {
-        setPayer(prev => ({
-            ...prev,
-            [field]: field === 'cpf' ? formatCPF(value) : value
-        }));
+    // Boleto results
+    const [boletoLink, setBoletoLink] = useState('');
+
+    const formatCpf = (value: string) => {
+        const digits = value.replace(/\D/g, '').slice(0, 11);
+        if (digits.length <= 3) return digits;
+        if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+        if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+        return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
     };
 
-    const extractPixData = (order: any): PixResult | null => {
-        try {
-            // Pix Scan Code — segundo a API do PayPal
-            const links = order?.links || [];
-            const pixLink = links.find((l: any) => l.rel === 'pix_scan_code');
-            const pixCode = order?.payment_source?.pix?.pix_code
-                || order?.purchase_units?.[0]?.payments?.captures?.[0]?.supplementary_data?.related_ids?.pix_scan_code
-                || pixLink?.href
-                || null;
+    const isFormValid = givenName.trim() && surname.trim() && email.includes('@') && cpf.replace(/\D/g, '').length === 11;
 
-            const pixImageUrl = order?.payment_source?.pix?.pix_image
-                || order?.links?.find((l: any) => l.rel === 'pix_image_url')?.href
-                || null;
-
-            if (!pixCode && !pixImageUrl) return null;
-
-            return {
-                orderId: order.id,
-                pixCode: pixCode || '',
-                pixImageUrl: pixImageUrl || '',
-                expiresAt: order?.payment_source?.pix?.expires_at || ''
-            };
-        } catch {
-            return null;
-        }
+    const selectMethod = (m: PaymentMethod) => {
+        setMethod(m);
+        setStatus('form');
+        setErrorMsg('');
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
+    const handleSubmit = async () => {
+        if (!isFormValid || !method) return;
+        setStatus('loading');
+        setErrorMsg('');
 
-        const cpfClean = payer.cpf.replace(/\D/g, '');
-        if (cpfClean.length !== 11) {
-            setError('CPF inválido. Digite os 11 dígitos.');
-            setLoading(false);
-            return;
-        }
+        const action = method === 'pix' ? 'create-pix' : 'create-boleto';
 
         try {
-            const action = method === 'pix' ? 'pix' : 'boleto';
             const response = await axios.post(`/api?action=${action}`, {
                 cart: items,
                 payer: {
-                    given_name: payer.given_name.trim(),
-                    surname: payer.surname.trim(),
-                    email: payer.email.trim(),
-                    cpf: cpfClean
+                    given_name: givenName.trim(),
+                    surname: surname.trim(),
+                    email: email.trim(),
+                    cpf: cpf.replace(/\D/g, '')
                 }
             });
 
             const order = response.data;
-            console.log(`[${method.toUpperCase()}] Ordem criada:`, order);
+            console.log(`[${method}] Resposta:`, order);
 
-            // Salvar no Supabase
+            // Gravar no Supabase
+            const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
             await supabase.from('orders').insert([{
                 paypal_order_id: order.id,
                 status: order.status || 'PENDING',
                 amount: total,
                 currency: 'BRL',
-                customer_email: payer.email
+                customer_email: email.trim()
             }]);
 
             if (method === 'pix') {
-                const pix = extractPixData(order);
-                if (pix && (pix.pixCode || pix.pixImageUrl)) {
-                    setPixResult(pix);
-                    setStep('qrcode');
-                } else {
-                    // Sandbox pode não retornar QR Code completo — mostrar ordem criada
-                    setPixResult({
-                        orderId: order.id,
-                        pixCode: order.id, // Fallback: exibir o Order ID como referência
-                        pixImageUrl: '',
-                        expiresAt: ''
-                    });
-                    setStep('qrcode');
-                }
-            } else {
-                const boletoLink = order?.links?.find((l: any) => l.rel === 'approve' || l.rel === 'boleto');
-                setBoletoResult({
-                    orderId: order.id,
-                    boletoUrl: boletoLink?.href || ''
-                });
-                setStep('boleto_redirect');
-            }
+                // Extrair QR code e copia-cola dos links
+                const pixLink = order.links?.find((l: any) => l.rel === 'pix_code' || l.rel === 'payer-action');
+                const qrImage = order.payment_source?.pix?.pix_image;
+                const qrCode = order.payment_source?.pix?.pix_code;
 
-        } catch (err: any) {
-            console.error(`[${method}] Erro:`, err.response?.data || err.message);
-            const details = err.response?.data?.details;
+                setPixQrImage(qrImage || '');
+                setPixCode(qrCode || pixLink?.href || order.id);
+                setStatus('qrcode');
+            } else {
+                // Extrair link do boleto
+                const approveLink = order.links?.find((l: any) => l.rel === 'payer-action' || l.rel === 'approve');
+                setBoletoLink(approveLink?.href || '');
+                setStatus('boleto-link');
+            }
+        } catch (error: any) {
+            console.error(`[${method}] Erro:`, error.response?.data || error.message);
+            const details = error.response?.data?.details;
             let msg = '';
             if (Array.isArray(details) && details.length > 0) {
                 msg = `${details[0].issue}: ${details[0].description}`;
             } else {
-                msg = err.response?.data?.message || err.response?.data?.error || err.message;
+                msg = error.response?.data?.error || error.message || 'Erro desconhecido.';
             }
-            setError(msg || 'Erro ao processar pagamento. Tente novamente.');
-            setStep('error');
-        } finally {
-            setLoading(false);
+            setErrorMsg(msg);
+            setStatus('error');
         }
     };
 
     const copyPixCode = async () => {
-        if (!pixResult?.pixCode) return;
-        await navigator.clipboard.writeText(pixResult.pixCode);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-    };
-
-    const handleMarkPaid = () => {
-        setStep('success');
-        clearCart();
+        try {
+            await navigator.clipboard.writeText(pixCode);
+            setCopiedPix(true);
+            setTimeout(() => setCopiedPix(false), 2500);
+        } catch {
+            // fallback
+            const ta = document.createElement('textarea');
+            ta.value = pixCode;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            setCopiedPix(true);
+            setTimeout(() => setCopiedPix(false), 2500);
+        }
     };
 
     const reset = () => {
-        setStep('form');
-        setError('');
-        setPixResult(null);
-        setBoletoResult(null);
+        setMethod(null);
+        setStatus('idle');
+        setErrorMsg('');
+        setPixQrImage('');
+        setPixCode('');
+        setBoletoLink('');
     };
 
-    // ─── Tela de Sucesso ───────────────────────────────────────────────
-    if (step === 'success') {
+    // ─── IDLE: Botões de seleção ───
+    if (status === 'idle') {
+        return (
+            <div className="space-y-3">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center">
+                    Ou pague com
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                    <button
+                        onClick={() => selectMethod('pix')}
+                        className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border-2 border-gray-100 bg-white hover:border-teal-400 hover:bg-teal-50/50 transition-all cursor-pointer group min-h-[52px]"
+                    >
+                        <svg viewBox="0 0 512 512" className="w-5 h-5 text-teal-600 group-hover:scale-110 transition-transform" fill="currentColor">
+                            <path d="M242.4 292.5C247.8 287.1 257.1 287.1 262.5 292.5L339.5 369.5C353.7 383.7 372.5 391.5 392.5 391.5H407.7L310.6 488.6C280.3 518.9 231.1 518.9 200.8 488.6L103.3 391.2H112.6C132.6 391.2 151.5 383.4 165.7 369.2L242.4 292.5zM ## 165.7 142.8C151.5 128.6 132.6 120.8 112.6 120.8H103.3L200.7 23.38C231 -6.943 280.3 -6.943 310.6 23.38L407.8 120.6H392.5C372.5 120.6 353.7 128.4 339.5 142.6L262.5 219.5C257.1 224.9 247.8 224.9 242.4 219.5L165.7 142.8zM464.6 164.6L407.1 222C399.5 229.6 399.5 282.4 407.1 289.1L464.6 347.4C494.9 377.7 494.9 426.9 464.6 457.2L441.5 480.3C434.8 487 423.7 487 417 480.3L310.6 374C296.4 359.8 277.5 352 257.5 352H254.5C234.5 352 215.5 359.8 201.4 374L94.97 480.3C88.27 487 77.15 487 70.45 480.3L47.38 457.2C17.13 426.9 17.13 377.7 47.38 347.4L104.9 289.1C112.5 282.4 112.5 229.6 104.9 222L47.38 164.6C17.13 134.3 17.13 85.13 47.38 54.88L70.45 31.81C77.15 25.11 88.27 25.11 94.97 31.81L201.4 138.2C215.6 152.4 234.5 160.2 254.5 160.2H257.5C277.5 160.2 296.4 152.4 310.6 138.2L417 31.81C423.7 25.11 434.8 25.11 441.5 31.81L464.6 54.88C494.9 85.13 494.9 134.3 464.6 164.6z" />
+                        </svg>
+                        <span className="text-sm font-bold text-gray-700">Pix</span>
+                    </button>
+                    <button
+                        onClick={() => selectMethod('boleto')}
+                        className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border-2 border-gray-100 bg-white hover:border-orange-400 hover:bg-orange-50/50 transition-all cursor-pointer group min-h-[52px]"
+                    >
+                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="2" y="4" width="20" height="16" rx="2" />
+                            <line x1="6" y1="8" x2="6" y2="16" />
+                            <line x1="8" y1="8" x2="8" y2="16" />
+                            <line x1="11" y1="8" x2="11" y2="16" />
+                            <line x1="13" y1="8" x2="13" y2="16" />
+                            <line x1="15" y1="8" x2="15" y2="16" />
+                            <line x1="18" y1="8" x2="18" y2="16" />
+                        </svg>
+                        <span className="text-sm font-bold text-gray-700">Boleto</span>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── FORM: Coleta de dados do pagador ───
+    if (status === 'form') {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                        {method === 'pix' ? (
+                            <span className="w-2 h-2 rounded-full bg-teal-500" />
+                        ) : (
+                            <span className="w-2 h-2 rounded-full bg-orange-500" />
+                        )}
+                        Pagar com {method === 'pix' ? 'Pix' : 'Boleto'}
+                    </h3>
+                    <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer">
+                        ← Voltar
+                    </button>
+                </div>
+
+                <p className="text-xs text-gray-400">
+                    Informe seus dados. O CPF é obrigatório conforme regulamentação do Banco Central.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <input
+                        type="text"
+                        placeholder="Nome"
+                        value={givenName}
+                        onChange={(e) => setGivenName(e.target.value)}
+                        className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-gray-400 focus:outline-none transition-colors"
+                    />
+                    <input
+                        type="text"
+                        placeholder="Sobrenome"
+                        value={surname}
+                        onChange={(e) => setSurname(e.target.value)}
+                        className="px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-gray-400 focus:outline-none transition-colors"
+                    />
+                </div>
+
+                <input
+                    type="email"
+                    placeholder="E-mail"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-gray-400 focus:outline-none transition-colors"
+                />
+
+                <input
+                    type="text"
+                    placeholder="CPF (000.000.000-00)"
+                    value={cpf}
+                    onChange={(e) => setCpf(formatCpf(e.target.value))}
+                    maxLength={14}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-gray-400 focus:outline-none transition-colors font-mono"
+                />
+
+                <button
+                    onClick={handleSubmit}
+                    disabled={!isFormValid}
+                    className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all cursor-pointer min-h-[48px] ${isFormValid
+                            ? method === 'pix'
+                                ? 'bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800'
+                                : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
+                >
+                    {method === 'pix' ? 'Gerar QR Code Pix' : 'Gerar Boleto'}
+                </button>
+            </div>
+        );
+    }
+
+    // ─── LOADING ───
+    if (status === 'loading') {
+        return (
+            <div className="flex flex-col items-center gap-3 py-8">
+                <div className="w-10 h-10 border-3 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+                <p className="text-sm text-gray-500 font-medium">
+                    Gerando {method === 'pix' ? 'QR Code Pix' : 'Boleto'}...
+                </p>
+            </div>
+        );
+    }
+
+    // ─── PIX QR CODE ───
+    if (status === 'qrcode') {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-teal-700 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                        Pix Gerado
+                    </h3>
+                    <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer">
+                        ← Voltar
+                    </button>
+                </div>
+
+                {pixQrImage && (
+                    <div className="flex justify-center">
+                        <div className="p-4 bg-white border-2 border-teal-100 rounded-2xl">
+                            <img src={pixQrImage} alt="QR Code Pix" className="w-48 h-48" />
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-2">
+                    <p className="text-xs text-gray-500 font-medium text-center">Código Copia e Cola:</p>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={pixCode}
+                            readOnly
+                            className="flex-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-mono truncate"
+                        />
+                        <button
+                            onClick={copyPixCode}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-[80px] ${copiedPix
+                                    ? 'bg-teal-100 text-teal-700'
+                                    : 'bg-teal-600 text-white hover:bg-teal-700'
+                                }`}
+                        >
+                            {copiedPix ? '✓ Copiado' : 'Copiar'}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-3 bg-teal-50 border border-teal-100 rounded-xl">
+                    <p className="text-xs text-teal-700 leading-relaxed text-center">
+                        Abra o app do seu banco, escaneie o QR Code ou cole o código Pix para efetuar o pagamento.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── BOLETO LINK ───
+    if (status === 'boleto-link') {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-orange-700 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                        Boleto Gerado
+                    </h3>
+                    <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer">
+                        ← Voltar
+                    </button>
+                </div>
+
+                <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl text-center space-y-3">
+                    <div className="w-14 h-14 mx-auto bg-orange-100 rounded-full flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" className="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="2" y="4" width="20" height="16" rx="2" />
+                            <line x1="6" y1="8" x2="6" y2="16" />
+                            <line x1="8" y1="8" x2="8" y2="16" />
+                            <line x1="11" y1="8" x2="11" y2="16" />
+                            <line x1="13" y1="8" x2="13" y2="16" />
+                            <line x1="15" y1="8" x2="15" y2="16" />
+                            <line x1="18" y1="8" x2="18" y2="16" />
+                        </svg>
+                    </div>
+                    <p className="text-sm font-bold text-orange-800">Seu boleto está pronto!</p>
+                    <p className="text-xs text-orange-600 leading-relaxed">
+                        Clique no botão abaixo para visualizar e imprimir ou copiar o código de barras.
+                    </p>
+                </div>
+
+                {boletoLink ? (
+                    <a
+                        href={boletoLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full py-3.5 rounded-xl bg-orange-600 text-white text-center text-sm font-bold hover:bg-orange-700 transition-all cursor-pointer min-h-[48px] leading-[48px]"
+                    >
+                        Abrir Boleto →
+                    </a>
+                ) : (
+                    <p className="text-xs text-gray-400 text-center">
+                        O link do boleto será enviado para seu e-mail.
+                    </p>
+                )}
+
+                <p className="text-[10px] text-gray-400 text-center">
+                    O boleto pode levar até 3 dias úteis para compensar. Após o pagamento, você receberá a confirmação por e-mail.
+                </p>
+            </div>
+        );
+    }
+
+    // ─── SUCCESS ───
+    if (status === 'success') {
         return (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
                 <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
@@ -194,130 +365,21 @@ export const PixBoletoCheckout: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
                 </div>
-                <p className="text-sm font-bold text-green-700">Pedido registrado com sucesso!</p>
-                <p className="text-xs text-gray-400">Assim que o pagamento for confirmado, você receberá um e-mail.</p>
+                <p className="text-sm font-bold text-green-700">Pagamento registrado!</p>
             </div>
         );
     }
 
-    // ─── QR Code Pix ──────────────────────────────────────────────────
-    if (step === 'qrcode' && pixResult) {
-        return (
-            <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center space-y-3">
-                    <div className="flex items-center justify-center gap-2 text-green-700 font-bold text-sm">
-                        <QrCode size={18} />
-                        <span>Pague via Pix</span>
-                    </div>
-
-                    {pixResult.pixImageUrl ? (
-                        <img src={pixResult.pixImageUrl} alt="QR Code Pix" className="w-48 h-48 mx-auto rounded-xl border border-green-200 bg-white p-2" />
-                    ) : (
-                        <div className="w-48 h-48 mx-auto rounded-xl border-2 border-dashed border-green-300 bg-white flex flex-col items-center justify-center gap-2 text-green-600">
-                            <QrCode size={48} strokeWidth={1} />
-                            <p className="text-[10px] font-medium text-center px-4">QR Code gerado no app do seu banco</p>
-                        </div>
-                    )}
-
-                    <p className="text-xs text-green-700 font-semibold">{totalFormatted}</p>
-                </div>
-
-                {/* Copia e Cola */}
-                {pixResult.pixCode && (
-                    <div className="space-y-2">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Código Pix (Copia e Cola)</p>
-                        <div className="flex gap-2">
-                            <div className="flex-1 p-3 bg-gray-50 rounded-xl text-[11px] text-gray-600 font-mono break-all border border-gray-200 max-h-20 overflow-y-auto">
-                                {pixResult.pixCode}
-                            </div>
-                            <button
-                                onClick={copyPixCode}
-                                className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors cursor-pointer flex-shrink-0"
-                                title="Copiar código"
-                            >
-                                {copied ? <Check size={16} /> : <Copy size={16} />}
-                            </button>
-                        </div>
-                        {copied && <p className="text-[11px] text-green-600 font-medium">✓ Copiado!</p>}
-                    </div>
-                )}
-
-                <p className="text-[11px] text-gray-400 text-center">
-                    Abra o app do seu banco, acesse a área Pix e escaneie o QR Code ou cole o código acima.
-                </p>
-
-                <div className="flex gap-2">
-                    <button
-                        onClick={handleMarkPaid}
-                        className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
-                    >
-                        Já paguei ✓
-                    </button>
-                    <button
-                        onClick={reset}
-                        className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition-colors cursor-pointer"
-                    >
-                        Voltar
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // ─── Boleto Gerado ────────────────────────────────────────────────
-    if (step === 'boleto_redirect' && boletoResult) {
-        return (
-            <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center space-y-2">
-                    <div className="flex items-center justify-center gap-2 text-blue-700 font-bold text-sm">
-                        <FileText size={18} />
-                        <span>Boleto Gerado!</span>
-                    </div>
-                    <p className="text-xs text-blue-600">Pedido: <span className="font-mono font-bold">{boletoResult.orderId}</span></p>
-                    <p className="text-xs text-blue-600 font-semibold">{totalFormatted}</p>
-                    <p className="text-[11px] text-blue-500">O boleto vence em 3 dias úteis. Pague em qualquer banco ou lotérica.</p>
-                </div>
-
-                {boletoResult.boletoUrl && (
-                    <a
-                        href={boletoResult.boletoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
-                    >
-                        <FileText size={16} />
-                        Visualizar / Imprimir Boleto
-                    </a>
-                )}
-
-                <div className="flex gap-2">
-                    <button
-                        onClick={handleMarkPaid}
-                        className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
-                    >
-                        Confirmar pedido ✓
-                    </button>
-                    <button
-                        onClick={reset}
-                        className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition-colors cursor-pointer"
-                    >
-                        Voltar
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // ─── Tela de Erro ─────────────────────────────────────────────────
-    if (step === 'error') {
+    // ─── ERROR ───
+    if (status === 'error') {
         return (
             <div className="space-y-3">
-                <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-700 font-medium leading-relaxed">
-                    ⚠️ {error}
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium leading-relaxed">
+                    ⚠️ {errorMsg || 'Erro ao processar pagamento.'}
                 </div>
                 <button
                     onClick={reset}
-                    className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+                    className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-700 hover:border-gray-400 transition-all cursor-pointer"
                 >
                     Tentar novamente
                 </button>
@@ -325,123 +387,5 @@ export const PixBoletoCheckout: React.FC = () => {
         );
     }
 
-    // ─── Formulário ───────────────────────────────────────────────────
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Seletor de método */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-2xl">
-                {(['pix', 'boleto'] as Method[]).map(m => (
-                    <button
-                        key={m}
-                        type="button"
-                        onClick={() => setMethod(m)}
-                        className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${method === m ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                        {m === 'pix' ? <QrCode size={15} /> : <FileText size={15} />}
-                        {m === 'pix' ? 'Pix' : 'Boleto'}
-                    </button>
-                ))}
-            </div>
-
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={method}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.18 }}
-                    className="space-y-3"
-                >
-                    <p className="text-[11px] text-gray-400 font-medium leading-relaxed">
-                        {method === 'pix'
-                            ? '🟢 Pagamento instantâneo. Você receberá um QR Code para pagar pelo seu app bancário.'
-                            : '🔵 Boleto gerado na hora. Prazo de 3 dias úteis para pagamento.'}
-                    </p>
-
-                    {/* Nome */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Nome</label>
-                            <input
-                                required
-                                type="text"
-                                value={payer.given_name}
-                                onChange={e => handleChange('given_name', e.target.value)}
-                                placeholder="João"
-                                className="mt-1 w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-all"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Sobrenome</label>
-                            <input
-                                required
-                                type="text"
-                                value={payer.surname}
-                                onChange={e => handleChange('surname', e.target.value)}
-                                placeholder="Silva"
-                                className="mt-1 w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-all"
-                            />
-                        </div>
-                    </div>
-
-                    {/* E-mail */}
-                    <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">E-mail</label>
-                        <input
-                            required
-                            type="email"
-                            value={payer.email}
-                            onChange={e => handleChange('email', e.target.value)}
-                            placeholder="joao@email.com"
-                            className="mt-1 w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-all"
-                        />
-                    </div>
-
-                    {/* CPF */}
-                    <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
-                            CPF <span className="text-gray-400 normal-case">(obrigatório pelo Banco Central)</span>
-                        </label>
-                        <input
-                            required
-                            type="text"
-                            inputMode="numeric"
-                            value={payer.cpf}
-                            onChange={e => handleChange('cpf', e.target.value)}
-                            placeholder="000.000.000-00"
-                            className="mt-1 w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-all font-mono"
-                        />
-                    </div>
-                </motion.div>
-            </AnimatePresence>
-
-            {/* Botão de submit */}
-            <motion.button
-                type="submit"
-                disabled={loading}
-                whileTap={{ scale: 0.98 }}
-                className={`w-full py-4 rounded-xl text-white text-sm font-bold transition-all cursor-pointer min-h-[50px] ${method === 'pix'
-                    ? 'bg-green-600 hover:bg-green-700 active:bg-green-800'
-                    : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
-                    } ${loading ? 'opacity-70 pointer-events-none' : ''}`}
-            >
-                {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        Gerando {method === 'pix' ? 'Pix...' : 'Boleto...'}
-                    </span>
-                ) : method === 'pix' ? (
-                    <span className="flex items-center justify-center gap-2">
-                        <QrCode size={16} />
-                        Gerar QR Code Pix — {totalFormatted}
-                    </span>
-                ) : (
-                    <span className="flex items-center justify-center gap-2">
-                        <FileText size={16} />
-                        Gerar Boleto — {totalFormatted}
-                    </span>
-                )}
-            </motion.button>
-        </form>
-    );
+    return null;
 };
