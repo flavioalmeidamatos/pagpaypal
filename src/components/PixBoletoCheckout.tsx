@@ -141,11 +141,9 @@ export const PixBoletoCheckout: React.FC = () => {
                         onClick={() => selectMethod('pix')}
                         className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-gray-200 bg-white hover:border-[#32BCAD] hover:bg-[#32BCAD]/5 transition-all cursor-pointer group min-h-[48px]"
                     >
-                        <img
-                            src="https://upload.wikimedia.org/wikipedia/commons/a/a2/Logo_pix.png"
-                            alt="Pix"
-                            className="w-5 h-5 object-contain group-hover:scale-110 transition-transform"
-                        />
+                        <svg viewBox="0 0 24 24" className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6.615 7.581l-1.421-1.421 2.085-2.085L12 8.794l4.721-4.719 2.085 2.085-1.421 1.421h.006L24 14.194l-4.821 4.821L12 24l-7.179-7.185L0 14.194l6.61-6.613h.005zm5.385 14.333l8.459-8.459L12 5 3.541 13.455 12 21.914zm0-4.238l-4.248-4.248 4.248-4.248 4.248 4.248-4.248 4.248z" fill="#32BCAD" />
+                        </svg>
                         <span className="text-sm font-bold text-gray-800">Pix</span>
                     </button>
                     <button
