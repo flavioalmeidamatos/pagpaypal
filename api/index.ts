@@ -366,11 +366,14 @@ export default async function handler(req: any, res: any) {
         return res.status(405).json({ error: 'Method not allowed' });
     } catch (error: any) {
         console.error('[API Runtime Error]:', {
+            status: error.response?.status,
             message: error.message,
-            stack: error.stack,
             paypalData: error.response?.data
         });
-        return res.status(500).json({
+
+        // Retorna o status real do PayPal se disponível, senão 500
+        const status = error.response?.status || 500;
+        return res.status(status).json({
             error: error.message,
             details: error.response?.data
         });
