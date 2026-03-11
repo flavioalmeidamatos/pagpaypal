@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../hooks/useCart';
 import { ShoppingBag, X, Plus, Minus } from 'lucide-react';
 import { PayPalCheckoutButton } from './PayPalCheckoutButton';
-import { PixBoletoCheckout } from './PixBoletoCheckout';
+
 
 interface CartDrawerProps {
     isOpen: boolean;
@@ -179,11 +179,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                                 <PayPalCheckoutButton />
                                             </div>
                                         </PayPalScriptProvider>
-                                    </div>
-
-                                    {/* Pix e Boleto */}
-                                    <div className="pt-2">
-                                        <PixBoletoCheckout />
                                     </div>
 
                                     <div className="mt-8 flex flex-col items-center gap-3">
