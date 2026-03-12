@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { PayPalButtons } from "@paypal/react-paypal-js";
 import axios, { AxiosError } from 'axios';
 import { useCart } from '../hooks/useCart';
-import { supabase } from '../lib/supabase';
 
 type PaymentStatus = 'idle' | 'processing' | 'success' | 'error';
 
@@ -12,6 +11,7 @@ interface CreateOrderResponse {
 }
 
 interface CaptureResponse {
+    id?: string;
     status?: string;
     payer?: {
         email_address?: string;
@@ -58,35 +58,14 @@ export const PayPalCheckoutButton: React.FC = () => {
         try {
             console.log('[PayPal] Capturando ordem:', data.orderID);
             const response = await axios.post<CaptureResponse>('/api?action=capture', {
-                orderID: data.orderID
+                orderID: data.orderID,
+                cart: items
             });
 
             console.log('[PayPal] Resposta da captura:', response.data);
             const captureStatus = response.data?.status;
 
             if (captureStatus === 'COMPLETED') {
-                // Gravar pedido no Supabase
-                const orderData = {
-                    paypal_order_id: data.orderID,
-                    status: 'COMPLETED',
-                    amount: items.reduce((acc, item) => acc + item.price * item.quantity, 0),
-                    currency: 'BRL',
-                    customer_email: response.data.payer?.email_address || 'guest@example.com'
-                };
-
-                if (supabase) {
-                    const { error: dbError } = await supabase
-                        .from('orders')
-                        .insert([orderData]);
-
-                    if (dbError) {
-                        console.error('[Supabase] Erro ao gravar pedido:', dbError);
-                    } else {
-                        console.log('[Supabase] Pedido gravado com sucesso!');
-                    }
-                } else {
-                    console.warn('[Supabase] Variáveis VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY ausentes. Pedido não persistido.');
-                }
                 setStatus('success');
                 clearCart();
             } else {

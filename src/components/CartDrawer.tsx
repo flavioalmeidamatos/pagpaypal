@@ -184,7 +184,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                             </PayPalScriptProvider>
                                         ) : (
                                             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
-                                                Defina <code>VITE_PAYPAL_CLIENT_ID</code> na Vercel para habilitar o checkout.
+                                                Defina `VITE_PAYPAL_CLIENT_ID` na Vercel para habilitar o checkout.
                                             </div>
                                         )}
                                     </div>

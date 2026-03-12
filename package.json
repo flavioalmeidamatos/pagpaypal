@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:bash": "bash ./deploy.sh",
+    "deploy:powershell": "pwsh -File ./deploy.ps1"
   },
   "dependencies": {
     "@paypal/paypal-server-sdk": "^2.2.0",
