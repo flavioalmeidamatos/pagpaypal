@@ -5,16 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../hooks/useCart';
 import { ShoppingBag, X, Plus, Minus } from 'lucide-react';
 import { PayPalCheckoutButton } from './PayPalCheckoutButton';
+import type { Product } from '../types/product';
 
 
 interface CartDrawerProps {
     isOpen: boolean;
     onClose: () => void;
-    onProductSelect: (product: any) => void;
+    onProductSelect: (product: Product) => void;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProductSelect }) => {
     const { items, removeItem, updateQuantity, subtotal } = useCart();
+    const paypalClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID || '').trim();
 
     // Bloqueio de scroll robusto (Modern Fintech UX)
     React.useEffect(() => {
@@ -168,17 +170,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
 
                                     {/* Botões PayPal com Espaçamento Ajustado */}
                                     <div className="space-y-6 pt-2">
-                                        <PayPalScriptProvider options={{
-                                            clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID || "test").trim(),
-                                            currency: "BRL",
-                                            intent: "capture",
-                                            "enable-funding": "paylater,venmo",
-                                            components: "buttons,marks"
-                                        }}>
-                                            <div className="min-h-[180px] relative px-1">
-                                                <PayPalCheckoutButton />
+                                        {paypalClientId ? (
+                                            <PayPalScriptProvider options={{
+                                                clientId: paypalClientId,
+                                                currency: "BRL",
+                                                intent: "capture",
+                                                "disable-funding": "card,credit,paylater,venmo",
+                                                components: "buttons"
+                                            }}>
+                                                <div className="min-h-[180px] relative px-1">
+                                                    <PayPalCheckoutButton />
+                                                </div>
+                                            </PayPalScriptProvider>
+                                        ) : (
+                                            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+                                                Defina <code>VITE_PAYPAL_CLIENT_ID</code> na Vercel para habilitar o checkout.
                                             </div>
-                                        </PayPalScriptProvider>
+                                        )}
                                     </div>
 
                                     <div className="mt-8 flex flex-col items-center gap-3">

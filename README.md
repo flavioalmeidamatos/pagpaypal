@@ -1,73 +1,62 @@
-# React + TypeScript + Vite
+# PagPayPal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Loja em React + TypeScript com checkout PayPal e persistencia opcional de pedidos no Supabase.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- `npm run dev`: inicia o ambiente local com Vite.
+- `npm run build`: gera o build de producao.
+- `npm run lint`: executa o ESLint.
+- `npm run preview`: serve o build localmente.
 
-## React Compiler
+## Requisitos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js `20.19+`
+- Conta PayPal com app Sandbox ou Live
+- Projeto na Vercel
 
-## Expanding the ESLint configuration
+## Variaveis de ambiente
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Frontend:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- `VITE_PAYPAL_CLIENT_ID`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+API:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- `PAYPAL_CLIENT_ID`
+- `PAYPAL_CLIENT_SECRET`
+- `PAYPAL_API_URL`
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Use `.env.example` como referencia local. Na Vercel, cadastre as mesmas chaves em `Project Settings > Environment Variables`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Deploy na Vercel
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1. Importe o repositorio na Vercel.
+2. Configure as variaveis de ambiente de `Preview` e `Production`.
+3. Para Sandbox, mantenha `PAYPAL_API_URL=https://api-m.sandbox.paypal.com`.
+4. Para producao, troque `PAYPAL_API_URL` para `https://api-m.paypal.com` e use credenciais Live.
+5. Faça um novo deploy apos salvar as variaveis.
+
+Configuracao esperada no projeto Vercel:
+
+- Framework Preset: `Vite`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Install Command: `npm install`
+- Node.js: `20.19.x` ou superior compativel
+
+## Fluxo de pagamento
+
+1. O carrinho envia os itens para `/api?action=create`.
+2. A funcao serverless cria a order no PayPal em `BRL`.
+3. A aprovacao do pagamento chama `/api?action=capture`.
+4. Se o Supabase estiver configurado, o pedido concluido e gravado na tabela `orders`.
+
+## Observacoes
+
+- O checkout foi mantido exclusivamente em PayPal.
+- Nao ha fluxo de Pix ou boleto neste projeto.
+- Se `VITE_PAYPAL_CLIENT_ID` nao estiver configurado, o botao de pagamento nao e renderizado.
+- Se o Supabase nao estiver configurado, o pagamento continua funcionando, mas o pedido nao sera persistido.

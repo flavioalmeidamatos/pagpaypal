@@ -1,9 +1,39 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+import type { CartItem } from '../src/types/product';
 
 // Variáveis de ambiente (sanitizadas)
 const PAYPAL_CLIENT_ID = (process.env.PAYPAL_CLIENT_ID || '').trim();
 const PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
 const PAYPAL_API_URL = (process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com').trim();
+
+interface ApiRequest {
+    method?: string;
+    query: {
+        action?: string;
+        orderID?: string;
+    };
+    body: {
+        cart?: CartItem[];
+        orderID?: string;
+    };
+}
+
+interface ApiResponse {
+    setHeader: (name: string, value: string) => void;
+    status: (code: number) => {
+        json: (body: unknown) => void;
+        end: () => void;
+    };
+}
+
+interface PayPalApiErrorResponse {
+    message?: string;
+    details?: unknown;
+}
+
+function getAxiosError(error: unknown) {
+    return error as AxiosError<PayPalApiErrorResponse>;
+}
 
 /**
  * Gera um token de acesso OAuth 2.0 do PayPal
@@ -30,8 +60,9 @@ async function generateAccessToken() {
             },
         });
         return response.data.access_token;
-    } catch (error: any) {
-        console.error('[PayPal SDK] Token Generation Failed:', error.response?.data || error.message);
+    } catch (error: unknown) {
+        const apiError = getAxiosError(error);
+        console.error('[PayPal SDK] Token Generation Failed:', apiError.response?.data || apiError.message);
         throw error;
     }
 }
@@ -39,11 +70,11 @@ async function generateAccessToken() {
 /**
  * Cria uma ordem padrão no PayPal (botões PayPal)
  */
-async function createOrder(cartItems: any[]) {
+async function createOrder(cartItems: CartItem[]) {
     const accessToken = await generateAccessToken();
     const url = `${PAYPAL_API_URL}/v2/checkout/orders`;
 
-    const total = cartItems.reduce((sum: number, item: any) => sum + (item.price * (item.quantity || 1)), 0).toFixed(2);
+    const total = cartItems.reduce((sum: number, item) => sum + (item.price * (item.quantity || 1)), 0).toFixed(2);
 
     const payload = {
         intent: "CAPTURE",
@@ -59,7 +90,7 @@ async function createOrder(cartItems: any[]) {
                         }
                     }
                 },
-                items: cartItems.map((item: any) => ({
+                items: cartItems.map((item) => ({
                     name: item.name,
                     unit_amount: {
                         currency_code: "BRL",
@@ -88,10 +119,6 @@ async function createOrder(cartItems: any[]) {
     return response.data;
 }
 
-
-
-
-
 /**
  * Captura o pagamento de uma ordem aprovada
  */
@@ -112,11 +139,12 @@ async function captureOrder(orderID: string) {
         });
         console.log('[PayPal] Resposta de captura recebida:', response.status);
         return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const apiError = getAxiosError(error);
         console.error('[PayPal SDK] Capture Failed:', {
-            status: error.response?.status,
-            data: error.response?.data,
-            message: error.message
+            status: apiError.response?.status,
+            data: apiError.response?.data,
+            message: apiError.message
         });
         throw error;
     }
@@ -144,7 +172,7 @@ async function getOrderStatus(orderID: string) {
 /**
  * Handler principal Vercel
  */
-export default async function handler(req: any, res: any) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
     // CORS configuration
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -163,11 +191,6 @@ export default async function handler(req: any, res: any) {
 
     console.log('[API Request] Action:', action);
 
-    // Detectar base URL para redirects
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
-    const baseUrl = `${protocol}://${host}`;
-
     try {
         if (req.method === 'POST') {
             // PayPal Buttons (checkout padrão)
@@ -179,8 +202,6 @@ export default async function handler(req: any, res: any) {
                 const order = await createOrder(cart);
                 return res.status(200).json(order);
             }
-
-
 
             // Capturar pagamento
             if (action === 'capture') {
@@ -204,18 +225,19 @@ export default async function handler(req: any, res: any) {
         }
 
         return res.status(405).json({ error: 'Method not allowed' });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const apiError = getAxiosError(error);
         console.error('[API Runtime Error]:', {
-            status: error.response?.status,
-            message: error.message,
-            paypalData: error.response?.data
+            status: apiError.response?.status,
+            message: apiError.message,
+            paypalData: apiError.response?.data
         });
 
         // Retorna o status real do PayPal se disponível, senão 500
-        const status = error.response?.status || 500;
+        const status = apiError.response?.status || 500;
         return res.status(status).json({
-            error: error.message,
-            details: error.response?.data
+            error: apiError.message,
+            details: apiError.response?.data
         });
     }
 }

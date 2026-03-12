@@ -1,11 +1,36 @@
 
 import React, { useState } from 'react';
 import { PayPalButtons } from "@paypal/react-paypal-js";
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { useCart } from '../hooks/useCart';
 import { supabase } from '../lib/supabase';
 
 type PaymentStatus = 'idle' | 'processing' | 'success' | 'error';
+
+interface CreateOrderResponse {
+    id: string;
+}
+
+interface CaptureResponse {
+    status?: string;
+    payer?: {
+        email_address?: string;
+    };
+}
+
+interface ApprovalData {
+    orderID: string;
+}
+
+interface ApiErrorDetail {
+    issue?: string;
+    description?: string;
+}
+
+interface ApiErrorResponse {
+    message?: string;
+    details?: ApiErrorDetail[];
+}
 
 export const PayPalCheckoutButton: React.FC = () => {
     const { items, clearCart } = useCart();
@@ -14,24 +39,25 @@ export const PayPalCheckoutButton: React.FC = () => {
 
     const createOrder = async () => {
         try {
-            const response = await axios.post('/api?action=create', {
+            const response = await axios.post<CreateOrderResponse>('/api?action=create', {
                 cart: items
             });
             return response.data.id;
-        } catch (error: any) {
-            console.error('[PayPal] Erro ao criar ordem:', error.response?.data || error.message);
+        } catch (error: unknown) {
+            const apiError = error as AxiosError<ApiErrorResponse>;
+            console.error('[PayPal] Erro ao criar ordem:', apiError.response?.data || apiError.message);
             setStatus('error');
             setErrorMessage('Não foi possível iniciar o pagamento. Tente novamente.');
             throw error;
         }
     };
 
-    const onApprove = async (data: any) => {
+    const onApprove = async (data: ApprovalData) => {
         setStatus('processing');
         setErrorMessage('');
         try {
             console.log('[PayPal] Capturando ordem:', data.orderID);
-            const response = await axios.post('/api?action=capture', {
+            const response = await axios.post<CaptureResponse>('/api?action=capture', {
                 orderID: data.orderID
             });
 
@@ -48,16 +74,19 @@ export const PayPalCheckoutButton: React.FC = () => {
                     customer_email: response.data.payer?.email_address || 'guest@example.com'
                 };
 
-                const { error: dbError } = await supabase
-                    .from('orders')
-                    .insert([orderData]);
+                if (supabase) {
+                    const { error: dbError } = await supabase
+                        .from('orders')
+                        .insert([orderData]);
 
-                if (dbError) {
-                    console.error('[Supabase] Erro ao gravar pedido:', dbError);
+                    if (dbError) {
+                        console.error('[Supabase] Erro ao gravar pedido:', dbError);
+                    } else {
+                        console.log('[Supabase] Pedido gravado com sucesso!');
+                    }
                 } else {
-                    console.log('[Supabase] Pedido gravado com sucesso!');
+                    console.warn('[Supabase] Variáveis VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY ausentes. Pedido não persistido.');
                 }
-
                 setStatus('success');
                 clearCart();
             } else {
@@ -65,19 +94,20 @@ export const PayPalCheckoutButton: React.FC = () => {
                 setStatus('error');
                 setErrorMessage(`Pagamento com status inesperado: ${captureStatus}. Verifique sua conta PayPal.`);
             }
-        } catch (error: any) {
-            console.error('[PayPal] Falha na captura:', error);
+        } catch (error: unknown) {
+            const apiError = error as AxiosError<ApiErrorResponse>;
+            console.error('[PayPal] Falha na captura:', apiError);
 
             // Extrair mensagem de erro detalhada do PayPal
-            const paypalDetails = error.response?.data?.details;
+            const paypalDetails = apiError.response?.data?.details;
             let msg = '';
 
             if (Array.isArray(paypalDetails) && paypalDetails.length > 0) {
                 msg = `${paypalDetails[0].issue}: ${paypalDetails[0].description}`;
-            } else if (error.response?.data?.message) {
-                msg = error.response.data.message;
+            } else if (apiError.response?.data?.message) {
+                msg = apiError.response.data.message;
             } else {
-                msg = error.message || 'Erro desconhecido ao processar pagamento.';
+                msg = apiError.message || 'Erro desconhecido ao processar pagamento.';
             }
 
             setStatus('error');
@@ -88,7 +118,7 @@ export const PayPalCheckoutButton: React.FC = () => {
         }
     };
 
-    const onError = (err: any) => {
+    const onError = (err: unknown) => {
         console.error('[PayPal SDK] Erro:', err);
         setStatus('error');
         setErrorMessage('Ocorreu um erro com o PayPal. Tente novamente.');
