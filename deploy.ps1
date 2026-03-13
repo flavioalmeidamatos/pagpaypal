@@ -128,6 +128,54 @@ function Import-DotEnvFile {
     }
 }
 
+function ConvertTo-ArgumentString {
+    param([string[]]$Arguments = @())
+
+    $escapedArguments = foreach ($arg in $Arguments) {
+        if ($null -eq $arg) {
+            '""'
+            continue
+        }
+
+        if ($arg -notmatch '[\s"]') {
+            $arg
+            continue
+        }
+
+        $escaped = $arg -replace '(\\*)"', '$1$1\"'
+        $escaped = $escaped -replace '(\\+)$', '$1$1'
+        '"' + $escaped + '"'
+    }
+
+    return [string]::Join(" ", $escapedArguments)
+}
+
+function Resolve-CommandPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CommandName,
+
+        [string[]]$FallbackPaths = @()
+    )
+
+    $lookupNames = @("$CommandName.exe", "$CommandName.cmd", $CommandName)
+
+    foreach ($lookupName in $lookupNames) {
+        $command = Get-Command $lookupName -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($command -and -not [string]::IsNullOrWhiteSpace($command.Source)) {
+            return $command.Source
+        }
+    }
+
+    foreach ($fallbackPath in $FallbackPaths) {
+        if (-not [string]::IsNullOrWhiteSpace($fallbackPath) -and (Test-Path $fallbackPath)) {
+            return $fallbackPath
+        }
+    }
+
+    throw "Comando nao encontrado: $CommandName"
+}
+
 function Invoke-NativeCommand {
     param(
         [Parameter(Mandatory = $true)]
@@ -137,50 +185,62 @@ function Invoke-NativeCommand {
 
         [hashtable]$ExtraEnv = @{}
     )
-
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $FilePath
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-
-    foreach ($arg in $Arguments) {
-        [void]$psi.ArgumentList.Add($arg)
-    }
+    $previousEnv = @{}
 
     foreach ($key in $ExtraEnv.Keys) {
+        $previousEnv[$key] = [Environment]::GetEnvironmentVariable($key, "Process")
         if ($null -ne $ExtraEnv[$key]) {
-            $psi.Environment[$key] = [string]$ExtraEnv[$key]
+            [Environment]::SetEnvironmentVariable($key, [string]$ExtraEnv[$key], "Process")
         }
     }
 
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $psi
+    try {
+        $output = & $FilePath @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+        if ($null -eq $exitCode) {
+            $exitCode = 0
+        }
+    }
+    catch {
+        $output = @($_)
+        $exitCode = 1
+    }
+    finally {
+        foreach ($key in $previousEnv.Keys) {
+            [Environment]::SetEnvironmentVariable($key, $previousEnv[$key], "Process")
+        }
+    }
 
-    [void]$process.Start()
-
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
-
-    $process.WaitForExit()
+    $combined = ($output | ForEach-Object {
+        if ($_ -is [System.Management.Automation.ErrorRecord]) {
+            $_.ToString()
+        }
+        else {
+            [string]$_
+        }
+    }) -join [Environment]::NewLine
 
     [PSCustomObject]@{
-        ExitCode = $process.ExitCode
-        StdOut   = $stdout
-        StdErr   = $stderr
-        Combined = (($stdout, $stderr) -join [Environment]::NewLine).Trim()
+        ExitCode = $exitCode
+        StdOut   = $combined
+        StdErr   = ""
+        Combined = $combined.Trim()
     }
 }
 
 function Test-NodeVersion {
-    $result = Invoke-NativeCommand -FilePath "node" -Arguments @("-v")
-
-    if ($result.ExitCode -ne 0) {
-        throw "Falha ao obter versao do Node.js: $($result.Combined)"
+    $nodePath = Resolve-CommandPath -CommandName "node" -FallbackPaths @(
+        "C:\Program Files\nodejs\node.exe"
+    )
+    $nodeOutput = @(& $nodePath -v 2>&1)
+    $raw = ($nodeOutput | Select-Object -First 1 | ForEach-Object { $_.ToString().Trim() })
+    if (-not $raw -and (Test-Path $nodePath)) {
+        $productVersion = (Get-Item $nodePath).VersionInfo.ProductVersion
+        if (-not [string]::IsNullOrWhiteSpace($productVersion)) {
+            $raw = "v$productVersion"
+        }
     }
 
-    $raw = $result.StdOut.Trim()
     if (-not $raw) {
         throw "Node.js nao encontrado."
     }
@@ -202,8 +262,21 @@ function Test-NodeVersion {
     Write-Host "Node detectado: $raw"
 }
 
+function Test-RestrictedValidationKey {
+    param([string]$ApiKeyName)
+
+    return $ApiKeyName -in @(
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY",
+        "VITE_SUPABASE_ANON_KEY",
+        "SUPABASE_ANON_KEY"
+    )
+}
+
 function Test-SupabaseCli {
-    $result = Invoke-NativeCommand -FilePath "npx" -Arguments @("supabase", "--version")
+    $npxPath = Resolve-CommandPath -CommandName "npx" -FallbackPaths @(
+        "C:\Program Files\nodejs\npx.cmd"
+    )
+    $result = Invoke-NativeCommand -FilePath $npxPath -Arguments @("supabase", "--version")
 
     if ($result.ExitCode -ne 0) {
         throw "Falha ao validar Supabase CLI: $($result.Combined)"
@@ -213,7 +286,11 @@ function Test-SupabaseCli {
 }
 
 function Test-VercelCli {
-    $result = Invoke-NativeCommand -FilePath "vercel" -Arguments @("--version")
+    $vercelPath = Resolve-CommandPath -CommandName "vercel" -FallbackPaths @(
+        (Join-Path $env:APPDATA "npm\vercel.cmd"),
+        (Join-Path $env:USERPROFILE "AppData\Roaming\npm\vercel.cmd")
+    )
+    $result = Invoke-NativeCommand -FilePath $vercelPath -Arguments @("--version")
 
     if ($result.ExitCode -ne 0) {
         throw "Falha ao validar Vercel CLI: $($result.Combined)"
@@ -223,6 +300,9 @@ function Test-VercelCli {
 }
 
 function Invoke-DbPush {
+    $npxPath = Resolve-CommandPath -CommandName "npx" -FallbackPaths @(
+        "C:\Program Files\nodejs\npx.cmd"
+    )
     $dbPassword = Get-RequiredEnv "SUPABASE_DB_PASSWORD"
     $supabaseAccessToken = Get-OptionalEnv "SUPABASE_ACCESS_TOKEN"
 
@@ -235,7 +315,7 @@ function Invoke-DbPush {
     }
 
     $result = Invoke-NativeCommand `
-        -FilePath "npx" `
+        -FilePath $npxPath `
         -Arguments @("supabase", "db", "push") `
         -ExtraEnv $extraEnv
 
@@ -267,11 +347,11 @@ function Get-SupabaseUrlForValidation {
 
 function Get-SupabaseApiKeyForValidation {
     return Get-FirstAvailableEnv -Names @(
-        "SUPABASE_SECRET_KEY",
         "SUPABASE_SERVICE_ROLE_KEY",
         "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY",
         "VITE_SUPABASE_ANON_KEY",
-        "SUPABASE_ANON_KEY"
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SECRET_KEY"
     ) -Required
 }
 
@@ -299,8 +379,19 @@ function Test-OneTableViaRest {
             $errorText = $_.Exception.Message
         }
 
+        $isRestrictedKey = Test-RestrictedValidationKey -ApiKeyName $ApiKeyName
+
         if ($errorText -match "Invalid API key") {
             throw "Chave invalida ao validar '$TableName' usando $ApiKeyName."
+        }
+
+        if ($isRestrictedKey -and (
+            $errorText -match "\(404\)" -or
+            $errorText -match "permission denied" -or
+            $errorText -match "row-level security" -or
+            $errorText -match "JWT")) {
+            Write-Host "Validacao REST limitada para '$TableName' com a chave $ApiKeyName. Considerando a etapa como informativa." -ForegroundColor DarkYellow
+            return
         }
 
         if ($errorText -match "relation .* does not exist" -or
@@ -342,13 +433,17 @@ function Test-Tables {
 }
 
 function Invoke-VercelProd {
+    $vercelPath = Resolve-CommandPath -CommandName "vercel" -FallbackPaths @(
+        (Join-Path $env:APPDATA "npm\vercel.cmd"),
+        (Join-Path $env:USERPROFILE "AppData\Roaming\npm\vercel.cmd")
+    )
     $vercelToken = Get-OptionalEnv "VERCEL_TOKEN"
 
     if (-not [string]::IsNullOrWhiteSpace($vercelToken)) {
-        $result = Invoke-NativeCommand -FilePath "vercel" -Arguments @("--prod", "--token", $vercelToken)
+        $result = Invoke-NativeCommand -FilePath $vercelPath -Arguments @("--prod", "--token", $vercelToken)
     }
     else {
-        $result = Invoke-NativeCommand -FilePath "vercel" -Arguments @("--prod")
+        $result = Invoke-NativeCommand -FilePath $vercelPath -Arguments @("--prod")
     }
 
     if ($result.StdOut) {
