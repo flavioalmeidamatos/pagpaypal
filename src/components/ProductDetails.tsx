@@ -1,15 +1,15 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Product } from '../types/product';
 import { useCart } from '../hooks/useCart';
+import { formatCurrency } from '../lib/currency';
 import { ShoppingBag, X } from 'lucide-react';
+import type { Product } from '../types/product';
 
 interface ProductDetailsProps {
     product: Product | null;
     onClose: () => void;
 }
 
-export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onClose }) => {
+export function ProductDetails({ product, onClose }: ProductDetailsProps) {
     const { addItem } = useCart();
 
     return (
@@ -62,9 +62,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onClose
                                 </div>
 
                                 <div className="mt-12 flex items-center justify-between">
-                                    <div className="text-3xl font-bold text-gray-900">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
-                                    </div>
+                                    <div className="text-3xl font-bold text-gray-900">{formatCurrency(product.price)}</div>
                                     <motion.button
                                         whileTap={{ scale: 0.95 }}
                                         onClick={() => {
@@ -84,4 +82,4 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onClose
             )}
         </AnimatePresence>
     );
-};
+}

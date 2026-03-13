@@ -47,6 +47,36 @@ interface CaptureOrderResponse {
     };
 }
 
+function isCartItem(value: unknown): value is CartItem {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const item = value as CartItem;
+
+    return (
+        typeof item.id === 'string' &&
+        typeof item.name === 'string' &&
+        typeof item.brand === 'string' &&
+        typeof item.price === 'number' &&
+        Number.isFinite(item.price) &&
+        typeof item.image === 'string' &&
+        typeof item.description === 'string' &&
+        typeof item.category === 'string' &&
+        typeof item.quantity === 'number' &&
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0
+    );
+}
+
+function parseCartItems(value: unknown) {
+    if (!Array.isArray(value) || !value.every(isCartItem)) {
+        throw new Error('INVALID_CART');
+    }
+
+    return value;
+}
+
 function getAxiosError(error: unknown) {
     return error as AxiosError<PayPalApiErrorResponse>;
 }
@@ -94,6 +124,10 @@ async function generateAccessToken() {
 }
 
 async function createOrder(cartItems: CartItem[]) {
+    if (!cartItems.length) {
+        throw new Error('EMPTY_CART');
+    }
+
     const accessToken = await generateAccessToken();
     const url = `${PAYPAL_API_URL}/v2/checkout/orders`;
     const total = cartItems
@@ -260,13 +294,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     try {
         if (req.method === 'POST') {
             if (action === 'create') {
-                const { cart } = req.body;
-                if (!cart || !Array.isArray(cart)) {
+                try {
+                    const cart = parseCartItems(req.body?.cart);
+                    const order = await createOrder(cart);
+                    return res.status(200).json(order);
+                } catch {
                     return res.status(400).json({ error: 'Cart is required and must be an array' });
                 }
-
-                const order = await createOrder(cart);
-                return res.status(200).json(order);
             }
 
             if (action === 'capture') {
@@ -277,7 +311,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
                 const capture = await captureOrder(orderID);
                 if (capture.status === 'COMPLETED') {
-                    await persistOrder(capture, Array.isArray(cart) ? cart : []);
+                    await persistOrder(capture, Array.isArray(cart) ? cart.filter(isCartItem) : []);
                 }
 
                 return res.status(200).json(capture);
@@ -296,6 +330,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
         return res.status(405).json({ error: 'Method not allowed' });
     } catch (error: unknown) {
+        if (error instanceof Error && error.message === 'EMPTY_CART') {
+            return res.status(400).json({ error: 'Cart must contain at least one item' });
+        }
+
         const apiError = getAxiosError(error);
         const status = apiError.response?.status || 500;
 

@@ -22,6 +22,7 @@ export const Header = ({ onCartOpen }: HeaderProps) => {
                 <button
                     onClick={onCartOpen}
                     className="relative p-3 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors group cursor-pointer"
+                    aria-label={`Abrir sacola${totalItems > 0 ? ` com ${totalItems} itens` : ''}`}
                 >
                     <ShoppingBag size={24} className="text-gray-900" />
                     <AnimatePresence>

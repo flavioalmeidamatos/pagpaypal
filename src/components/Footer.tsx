@@ -8,7 +8,7 @@ export const Footer = () => {
                     <Sparkles className="text-gray-900" size={20} />
                     <span className="text-lg font-black tracking-tighter text-gray-900 uppercase">Skincare.co</span>
                 </div>
-                <p className="text-gray-400 text-sm">© 2026 Skincare Co. Todos os direitos reservados. Feito com amor.</p>
+                <p className="text-gray-400 text-sm">© 2026 Skincare Co. Todos os direitos reservados.</p>
                 <div className="flex gap-8 text-gray-400 text-sm font-medium">
                     <a href="#" className="hover:text-gray-900 transition-colors">Termos</a>
                     <a href="#" className="hover:text-gray-900 transition-colors">Privacidade</a>

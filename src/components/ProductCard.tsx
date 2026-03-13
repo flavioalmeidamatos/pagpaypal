@@ -1,5 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
+import { formatCurrency } from '../lib/currency';
 import type { Product } from '../types/product';
 
 interface ProductCardProps {
@@ -8,7 +8,7 @@ interface ProductCardProps {
     isSelected?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSelected }) => {
+export function ProductCard({ product, onClick, isSelected = false }: ProductCardProps) {
     return (
         <motion.div
             layout
@@ -26,9 +26,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSe
             <div className="mt-3 sm:mt-4">
                 <p className="text-xs font-bold tracking-widest text-rose-500 uppercase">{product.brand}</p>
                 <h3 className="mt-1 text-base sm:text-lg font-semibold text-gray-900 line-clamp-2">{product.name}</h3>
-                <p className="mt-2 text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
-                </p>
+                <p className="mt-2 mb-3 text-lg font-bold text-gray-900 sm:mb-4 sm:text-xl">{formatCurrency(product.price)}</p>
             </div>
             <motion.button
                 whileTap={{ scale: 0.95 }}
@@ -38,4 +36,4 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isSe
             </motion.button>
         </motion.div>
     );
-};
+}

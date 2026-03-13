@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
-import { PayPalButtons } from "@paypal/react-paypal-js";
 import axios, { AxiosError } from 'axios';
+import { PayPalButtons } from "@paypal/react-paypal-js";
+import { useState } from 'react';
 import { useCart } from '../hooks/useCart';
 
 type PaymentStatus = 'idle' | 'processing' | 'success' | 'error';
@@ -28,11 +27,27 @@ interface ApiErrorDetail {
 }
 
 interface ApiErrorResponse {
+    error?: string;
     message?: string;
     details?: ApiErrorDetail[];
 }
 
-export const PayPalCheckoutButton: React.FC = () => {
+function getApiErrorMessage(error: AxiosError<ApiErrorResponse>) {
+    const paypalDetails = error.response?.data?.details;
+
+    if (Array.isArray(paypalDetails) && paypalDetails.length > 0) {
+        return `${paypalDetails[0].issue}: ${paypalDetails[0].description}`;
+    }
+
+    return (
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Erro desconhecido ao processar pagamento.'
+    );
+}
+
+export function PayPalCheckoutButton() {
     const { items, clearCart } = useCart();
     const [status, setStatus] = useState<PaymentStatus>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
@@ -76,23 +91,9 @@ export const PayPalCheckoutButton: React.FC = () => {
         } catch (error: unknown) {
             const apiError = error as AxiosError<ApiErrorResponse>;
             console.error('[PayPal] Falha na captura:', apiError);
-
-            // Extrair mensagem de erro detalhada do PayPal
-            const paypalDetails = apiError.response?.data?.details;
-            let msg = '';
-
-            if (Array.isArray(paypalDetails) && paypalDetails.length > 0) {
-                msg = `${paypalDetails[0].issue}: ${paypalDetails[0].description}`;
-            } else if (apiError.response?.data?.message) {
-                msg = apiError.response.data.message;
-            } else {
-                msg = apiError.message || 'Erro desconhecido ao processar pagamento.';
-            }
-
             setStatus('error');
-            setErrorMessage(msg);
+            setErrorMessage(getApiErrorMessage(apiError));
 
-            // Relançar para o PayPal SDK saber que falhou (evita spinner infinito)
             throw error;
         }
     };
@@ -125,7 +126,7 @@ export const PayPalCheckoutButton: React.FC = () => {
             {/* Mensagem de erro visível */}
             {status === 'error' && errorMessage && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium leading-relaxed">
-                    ⚠️ {errorMessage}
+                    {errorMessage}
                     <button
                         onClick={() => { setStatus('idle'); setErrorMessage(''); }}
                         className="block mt-1 text-red-500 underline cursor-pointer"
@@ -151,7 +152,7 @@ export const PayPalCheckoutButton: React.FC = () => {
                     label: "pay",
                     height: 50
                 }}
-                disabled={status === 'processing'}
+                disabled={status === 'processing' || items.length === 0}
                 createOrder={createOrder}
                 onApprove={onApprove}
                 onError={onError}
@@ -165,4 +166,4 @@ export const PayPalCheckoutButton: React.FC = () => {
             </div>
         </div>
     );
-};
+}

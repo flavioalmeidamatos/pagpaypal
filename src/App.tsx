@@ -1,13 +1,13 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { CartProvider } from './context/CartContext';
-import { products } from './data/products';
+import { Footer } from './components/Footer';
+import { Header } from './components/Header';
 import { ProductCarousel } from './components/ProductCarousel';
 import { ProductDetails } from './components/ProductDetails';
 import { CartDrawer } from './components/CartDrawer';
-import { Header } from './components/Header';
-import { Footer } from './components/Footer';
+import { products } from './data/products';
 import type { Product } from './types/product';
-import { motion } from 'framer-motion';
 
 const StoreContent = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);

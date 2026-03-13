@@ -1,8 +1,8 @@
-import { useRef, useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Product } from '../types/product';
 import { ProductCard } from './ProductCard';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProductCarouselProps {
     products: Product[];
@@ -10,24 +10,31 @@ interface ProductCarouselProps {
     selectedId?: string;
 }
 
-export const ProductCarousel: React.FC<ProductCarouselProps> = ({ products, onSelect, selectedId }) => {
+export function ProductCarousel({ products, onSelect, selectedId }: ProductCarouselProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
 
     const checkScroll = () => {
         const el = containerRef.current;
-        if (!el) return;
+        if (!el) {
+            return;
+        }
+
         setCanScrollLeft(el.scrollLeft > 10);
         setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
     };
 
     useEffect(() => {
         const el = containerRef.current;
-        if (!el) return;
+        if (!el) {
+            return;
+        }
+
         checkScroll();
         el.addEventListener('scroll', checkScroll, { passive: true });
         window.addEventListener('resize', checkScroll);
+
         return () => {
             el.removeEventListener('scroll', checkScroll);
             window.removeEventListener('resize', checkScroll);
@@ -35,12 +42,17 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({ products, onSe
     }, [products]);
 
     const scroll = (direction: 'left' | 'right') => {
-        if (containerRef.current) {
-            const cardWidth = containerRef.current.querySelector('div')?.clientWidth || 280;
-            const scrollAmount = cardWidth + 32; // card + gap
-            const { scrollLeft } = containerRef.current;
-            const scrollTo = direction === 'left' ? scrollLeft - scrollAmount : scrollLeft + scrollAmount;
-            containerRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+        const container = containerRef.current;
+        if (container) {
+            const firstCard = container.firstElementChild as HTMLElement | null;
+            const cardWidth = firstCard?.clientWidth || 280;
+            const scrollAmount = cardWidth + 32;
+            const nextPosition =
+                direction === 'left'
+                    ? container.scrollLeft - scrollAmount
+                    : container.scrollLeft + scrollAmount;
+
+            container.scrollTo({ left: nextPosition, behavior: 'smooth' });
         }
     };
 
@@ -98,4 +110,4 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({ products, onSe
             </motion.button>
         </div>
     );
-};
+}

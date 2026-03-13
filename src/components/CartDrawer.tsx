@@ -1,12 +1,18 @@
-
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useCart } from '../hooks/useCart';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ShoppingBag, X, Plus, Minus } from 'lucide-react';
+import { useEffect } from 'react';
+import { useCart } from '../hooks/useCart';
+import { formatCurrency } from '../lib/currency';
 import { PayPalCheckoutButton } from './PayPalCheckoutButton';
 import type { Product } from '../types/product';
 
+const paypalScriptOptions = {
+    currency: 'BRL',
+    intent: 'capture',
+    'disable-funding': 'card,credit,paylater,venmo',
+    components: 'buttons',
+} as const;
 
 interface CartDrawerProps {
     isOpen: boolean;
@@ -14,13 +20,13 @@ interface CartDrawerProps {
     onProductSelect: (product: Product) => void;
 }
 
-export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProductSelect }) => {
-    const { items, removeItem, updateQuantity, subtotal } = useCart();
+export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps) {
+    const { items, removeItem, updateQuantity, subtotal, totalItems } = useCart();
     const paypalClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID || '').trim();
 
-    // Bloqueio de scroll robusto (Modern Fintech UX)
-    React.useEffect(() => {
+    useEffect(() => {
         const html = document.documentElement;
+
         if (isOpen) {
             html.classList.add('overflow-hidden', 'h-full');
             document.body.classList.add('overflow-hidden', 'h-full', 'fixed', 'w-full');
@@ -28,6 +34,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
             html.classList.remove('overflow-hidden', 'h-full');
             document.body.classList.remove('overflow-hidden', 'h-full', 'fixed', 'w-full');
         }
+
         return () => {
             html.classList.remove('overflow-hidden', 'h-full');
             document.body.classList.remove('overflow-hidden', 'h-full', 'fixed', 'w-full');
@@ -63,7 +70,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                     Sua Sacola
                                 </h2>
                                 <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider ml-7">
-                                    {items.length} {items.length === 1 ? 'item' : 'itens'} selecionados
+                                    {totalItems} {totalItems === 1 ? 'item' : 'itens'} selecionados
                                 </p>
                             </div>
                             <button
@@ -131,9 +138,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                                             </button>
                                                         </div>
                                                         <div className="flex flex-col items-end">
-                                                            <p className="text-xs font-extrabold text-gray-900">
-                                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
-                                                            </p>
+                                                            <p className="text-xs font-extrabold text-gray-900">{formatCurrency(item.price)}</p>
                                                             <button
                                                                 onClick={() => removeItem(item.id)}
                                                                 className="text-[9px] text-gray-400 hover:text-rose-500 font-bold uppercase tracking-tighter"
@@ -155,29 +160,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
                                     <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4 mb-6">
                                         <div className="flex items-center justify-between text-xs font-semibold text-gray-500">
                                             <span>Subtotal</span>
-                                            <span>
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotal)}
-                                            </span>
+                                            <span>{formatCurrency(subtotal)}</span>
                                         </div>
                                         <div className="h-px bg-gray-50" />
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm font-bold text-gray-900 uppercase">Total a Pagar</span>
-                                            <span className="text-xl font-black text-gray-900">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotal)}
-                                            </span>
+                                            <span className="text-xl font-black text-gray-900">{formatCurrency(subtotal)}</span>
                                         </div>
                                     </div>
 
-                                    {/* Botões PayPal com Espaçamento Ajustado */}
                                     <div className="space-y-6 pt-2">
                                         {paypalClientId ? (
-                                            <PayPalScriptProvider options={{
-                                                clientId: paypalClientId,
-                                                currency: "BRL",
-                                                intent: "capture",
-                                                "disable-funding": "card,credit,paylater,venmo",
-                                                components: "buttons"
-                                            }}>
+                                            <PayPalScriptProvider options={{ clientId: paypalClientId, ...paypalScriptOptions }}>
                                                 <div className="min-h-[180px] relative px-1">
                                                     <PayPalCheckoutButton />
                                                 </div>
@@ -206,4 +200,4 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onProdu
             )}
         </AnimatePresence>
     );
-};
+}
