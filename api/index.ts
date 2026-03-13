@@ -51,6 +51,7 @@ interface CaptureOrderResponse {
     payer?: {
         email_address?: string;
     };
+    persistenceWarning?: string;
 }
 
 function isCartItem(value: unknown): value is CartItem {
@@ -458,13 +459,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     try {
         if (req.method === 'POST') {
             if (action === 'create') {
+                let cart: CartItem[];
+
                 try {
-                    const cart = parseCartItems(req.body?.cart);
-                    const order = await createOrder(cart);
-                    return res.status(200).json(order);
+                    cart = parseCartItems(req.body?.cart);
                 } catch {
                     return res.status(400).json({ error: 'Cart is required and must be an array' });
                 }
+
+                const order = await createOrder(cart);
+                return res.status(200).json(order);
             }
 
             if (action === 'capture') {
@@ -475,7 +479,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
                 const capture = await captureOrder(orderID);
                 if (capture.status === 'COMPLETED') {
-                    await persistOrder(capture, Array.isArray(cart) ? cart.filter(isCartItem) : []);
+                    try {
+                        await persistOrder(capture, Array.isArray(cart) ? cart.filter(isCartItem) : []);
+                    } catch (persistError: unknown) {
+                        const message = persistError instanceof Error ? persistError.message : 'UNKNOWN_PERSIST_ERROR';
+                        console.error('[Supabase] Pedido pago, mas não persistido:', message);
+                        capture.persistenceWarning = message;
+                    }
                 }
 
                 return res.status(200).json(capture);

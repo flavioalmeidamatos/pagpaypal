@@ -3,7 +3,7 @@ import { PayPalButtons } from "@paypal/react-paypal-js";
 import { useState } from 'react';
 import { useCart } from '../hooks/useCart';
 
-type PaymentStatus = 'idle' | 'processing' | 'success' | 'error';
+type PaymentStatus = 'idle' | 'processing' | 'error';
 
 interface CreateOrderResponse {
     id: string;
@@ -12,6 +12,7 @@ interface CreateOrderResponse {
 interface CaptureResponse {
     id?: string;
     status?: string;
+    persistenceWarning?: string;
     payer?: {
         email_address?: string;
     };
@@ -32,6 +33,10 @@ interface ApiErrorResponse {
     details?: ApiErrorDetail[];
 }
 
+interface PayPalCheckoutButtonProps {
+    onPaymentSuccess: (details: { orderId?: string; payerEmail?: string }) => void;
+}
+
 function getApiErrorMessage(error: AxiosError<ApiErrorResponse>) {
     const paypalDetails = error.response?.data?.details;
 
@@ -47,7 +52,7 @@ function getApiErrorMessage(error: AxiosError<ApiErrorResponse>) {
     );
 }
 
-export function PayPalCheckoutButton() {
+export function PayPalCheckoutButton({ onPaymentSuccess }: PayPalCheckoutButtonProps) {
     const { items, clearCart } = useCart();
     const [status, setStatus] = useState<PaymentStatus>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
@@ -62,7 +67,7 @@ export function PayPalCheckoutButton() {
             const apiError = error as AxiosError<ApiErrorResponse>;
             console.error('[PayPal] Erro ao criar ordem:', apiError.response?.data || apiError.message);
             setStatus('error');
-            setErrorMessage('Não foi possível iniciar o pagamento. Tente novamente.');
+            setErrorMessage(getApiErrorMessage(apiError));
             throw error;
         }
     };
@@ -81,8 +86,17 @@ export function PayPalCheckoutButton() {
             const captureStatus = response.data?.status;
 
             if (captureStatus === 'COMPLETED') {
-                setStatus('success');
+                if (response.data.persistenceWarning) {
+                    console.warn('[PayPal] Pagamento confirmado com alerta de persistência:', response.data.persistenceWarning);
+                }
+
+                setStatus('idle');
+                setErrorMessage('');
                 clearCart();
+                onPaymentSuccess({
+                    orderId: response.data?.id,
+                    payerEmail: response.data?.payer?.email_address
+                });
             } else {
                 console.warn('[PayPal] Status inesperado:', captureStatus);
                 setStatus('error');
@@ -93,33 +107,14 @@ export function PayPalCheckoutButton() {
             console.error('[PayPal] Falha na captura:', apiError);
             setStatus('error');
             setErrorMessage(getApiErrorMessage(apiError));
-
-            throw error;
         }
     };
 
     const onError = (err: unknown) => {
         console.error('[PayPal SDK] Erro:', err);
         setStatus('error');
-        setErrorMessage('Ocorreu um erro com o PayPal. Tente novamente.');
+        setErrorMessage((currentMessage) => currentMessage || 'Ocorreu um erro com o PayPal. Tente novamente.');
     };
-
-    // Tela de sucesso
-    if (status === 'success') {
-        return (
-            <div className="w-full">
-                <div className="flex flex-col items-center gap-3 py-6 text-center">
-                    <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
-                        <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
-                    <p className="text-sm font-bold text-green-700">Pagamento realizado com sucesso!</p>
-                    <p className="text-xs text-gray-400">Seu pedido foi registrado.</p>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="w-full space-y-3">

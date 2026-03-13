@@ -1,7 +1,7 @@
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { AnimatePresence, motion } from 'framer-motion';
 import { ShoppingBag, X, Plus, Minus } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCart } from '../hooks/useCart';
 import { formatCurrency } from '../lib/currency';
 import { PayPalCheckoutButton } from './PayPalCheckoutButton';
@@ -20,9 +20,15 @@ interface CartDrawerProps {
     onProductSelect: (product: Product) => void;
 }
 
+interface SuccessfulPayment {
+    orderId?: string;
+    payerEmail?: string;
+}
+
 export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps) {
     const { items, removeItem, updateQuantity, subtotal, totalItems } = useCart();
     const paypalClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID || '').trim();
+    const [successfulPayment, setSuccessfulPayment] = useState<SuccessfulPayment | null>(null);
 
     useEffect(() => {
         const html = document.documentElement;
@@ -40,6 +46,17 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
             document.body.classList.remove('overflow-hidden', 'h-full', 'fixed', 'w-full');
         };
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setSuccessfulPayment(null);
+        }
+    }, [isOpen]);
+
+    const handleSuccessModalClose = () => {
+        setSuccessfulPayment(null);
+        onClose();
+    };
 
     return (
         <AnimatePresence>
@@ -173,7 +190,7 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                         {paypalClientId ? (
                                             <PayPalScriptProvider options={{ clientId: paypalClientId, ...paypalScriptOptions }}>
                                                 <div className="min-h-[180px] relative px-1">
-                                                    <PayPalCheckoutButton />
+                                                    <PayPalCheckoutButton onPaymentSuccess={setSuccessfulPayment} />
                                                 </div>
                                             </PayPalScriptProvider>
                                         ) : (
@@ -195,6 +212,51 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                 </div>
                             )}
                         </div>
+
+                        <AnimatePresence>
+                            {successfulPayment && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 z-[80] flex items-center justify-center bg-gray-950/55 p-6 backdrop-blur-[2px]"
+                                >
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                                        transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+                                        className="w-full max-w-sm rounded-[32px] bg-white p-7 text-center shadow-2xl"
+                                    >
+                                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                                            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="mt-5 text-2xl font-black text-gray-900">Pagamento aprovado</h3>
+                                        <p className="mt-3 text-sm leading-relaxed text-gray-500">
+                                            Seu pagamento foi concluído com sucesso. Toque em OK para voltar ao menu principal.
+                                        </p>
+                                        {successfulPayment.orderId && (
+                                            <p className="mt-4 rounded-2xl bg-gray-50 px-4 py-3 text-[11px] font-semibold tracking-wide text-gray-500">
+                                                Pedido {successfulPayment.orderId}
+                                            </p>
+                                        )}
+                                        {successfulPayment.payerEmail && (
+                                            <p className="mt-3 text-xs text-gray-400">
+                                                Confirmação vinculada a {successfulPayment.payerEmail}
+                                            </p>
+                                        )}
+                                        <button
+                                            onClick={handleSuccessModalClose}
+                                            className="mt-6 w-full rounded-full bg-gray-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-gray-800"
+                                        >
+                                            OK
+                                        </button>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </motion.div>
                 </div>
             )}
