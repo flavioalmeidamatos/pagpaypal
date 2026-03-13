@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { Client } from 'pg';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { CartItem } from '../src/types/product';
 
@@ -7,6 +8,8 @@ const PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
 const PAYPAL_API_URL = (process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com').trim();
 const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '').trim();
+const SUPABASE_DB_PASSWORD = (process.env.SUPABASE_DB_PASSWORD || '').trim();
+const SUPABASE_POOLER_URL = (process.env.SUPABASE_POOLER_URL || '').trim();
 const ADMIN_READ_KEY = (process.env.ADMIN_READ_KEY || PAYPAL_CLIENT_SECRET || '').trim();
 
 interface ApiRequest {
@@ -130,6 +133,14 @@ function getDateRangeForAdminRead(rawDate?: string) {
         from: `${date}T00:00:00-03:00`,
         to: `${nextDate}T00:00:00-03:00`
     };
+}
+
+function getPostgresConnectionString() {
+    if (!SUPABASE_POOLER_URL || !SUPABASE_DB_PASSWORD) {
+        return null;
+    }
+
+    return SUPABASE_POOLER_URL.replace(/postgresql:\/\/([^@]+)@/, `postgresql://$1:${SUPABASE_DB_PASSWORD}@`);
 }
 
 async function generateAccessToken() {
@@ -314,13 +325,56 @@ async function persistOrder(capture: CaptureOrderResponse, cartItems: CartItem[]
 }
 
 async function listOrdersForAdmin(rawDate?: string) {
+    const range = getDateRangeForAdminRead(rawDate);
     const supabase = getSupabaseAdminClient();
 
     if (!supabase) {
-        throw new Error('SUPABASE_ADMIN_UNAVAILABLE');
+        const connectionString = getPostgresConnectionString();
+        if (!connectionString) {
+            throw new Error('SUPABASE_ADMIN_UNAVAILABLE');
+        }
+
+        const client = new Client({
+            connectionString,
+            ssl: {
+                rejectUnauthorized: false
+            },
+            connectionTimeoutMillis: 5000
+        });
+
+        await client.connect();
+
+        try {
+            const result = await client.query(
+                `
+                    select
+                        id,
+                        paypal_order_id,
+                        status,
+                        valor_total,
+                        moeda,
+                        email_cliente,
+                        criado_em
+                    from public.pedidos
+                    where criado_em >= $1::timestamptz
+                      and criado_em < $2::timestamptz
+                    order by criado_em desc
+                `,
+                [range.from, range.to]
+            );
+
+            return {
+                date: range.date,
+                count: result.rows.length,
+                pedidos: result.rows,
+                source: 'postgres-fallback'
+            };
+        }
+        finally {
+            await client.end();
+        }
     }
 
-    const range = getDateRangeForAdminRead(rawDate);
     const { data, error } = await supabase
         .from('pedidos')
         .select('id,paypal_order_id,status,valor_total,moeda,email_cliente,criado_em')
@@ -329,13 +383,59 @@ async function listOrdersForAdmin(rawDate?: string) {
         .order('criado_em', { ascending: false });
 
     if (error) {
+        if (error.message.includes("Could not find the table 'public.pedidos' in the schema cache")) {
+            const connectionString = getPostgresConnectionString();
+            if (connectionString) {
+                const client = new Client({
+                    connectionString,
+                    ssl: {
+                        rejectUnauthorized: false
+                    },
+                    connectionTimeoutMillis: 5000
+                });
+
+                await client.connect();
+
+                try {
+                    const result = await client.query(
+                        `
+                            select
+                                id,
+                                paypal_order_id,
+                                status,
+                                valor_total,
+                                moeda,
+                                email_cliente,
+                                criado_em
+                            from public.pedidos
+                            where criado_em >= $1::timestamptz
+                              and criado_em < $2::timestamptz
+                            order by criado_em desc
+                        `,
+                        [range.from, range.to]
+                    );
+
+                    return {
+                        date: range.date,
+                        count: result.rows.length,
+                        pedidos: result.rows,
+                        source: 'postgres-fallback'
+                    };
+                }
+                finally {
+                    await client.end();
+                }
+            }
+        }
+
         throw new Error(`SUPABASE_LIST_PEDIDOS_FAILED: ${error.message}`);
     }
 
     return {
         date: range.date,
         count: data?.length || 0,
-        pedidos: data || []
+        pedidos: data || [],
+        source: 'supabase-rest'
     };
 }
 
