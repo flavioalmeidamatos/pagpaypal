@@ -87,11 +87,12 @@ function Get-FirstAvailableEnv {
 
 function Import-DotEnvFile {
     param(
-        [string]$Path = ".env.local"
+        [Parameter(Mandatory = $true)]
+        [string]$Path
     )
 
     if (-not (Test-Path $Path)) {
-        Write-Host "Arquivo .env.local nao encontrado em: $Path" -ForegroundColor DarkYellow
+        Write-Host "Arquivo de ambiente nao encontrado em: $Path" -ForegroundColor DarkYellow
         return
     }
 
@@ -365,6 +366,7 @@ function Invoke-VercelProd {
 Write-Host "Fluxo final de deploy"
 Write-Host "Diretorio: $(Get-Location)"
 
+Import-DotEnvFile ".env"
 Import-DotEnvFile ".env.local"
 
 Invoke-Step "Validar Node.js" { Test-NodeVersion } | Out-Null
