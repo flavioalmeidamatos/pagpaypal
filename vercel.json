@@ -20,6 +20,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/admin-orders",
+      "destination": "/api/admin-orders"
+    },
+    {
       "source": "/api",
       "destination": "/api/index"
     },
