@@ -7,13 +7,16 @@ const PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();
 const PAYPAL_API_URL = (process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com').trim();
 const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+const ADMIN_READ_KEY = (process.env.ADMIN_READ_KEY || PAYPAL_CLIENT_SECRET || '').trim();
 
 interface ApiRequest {
     method?: string;
     query: {
         action?: string;
         orderID?: string;
+        date?: string;
     };
+    headers?: Record<string, string | string[] | undefined>;
     body: {
         cart?: CartItem[];
         orderID?: string;
@@ -92,6 +95,41 @@ function getSupabaseAdminClient(): SupabaseClient | null {
             autoRefreshToken: false
         }
     });
+}
+
+function getHeaderValue(value: string | string[] | undefined) {
+    if (Array.isArray(value)) {
+        return (value[0] || '').trim();
+    }
+
+    return (value || '').trim();
+}
+
+function isAdminAuthorized(req: ApiRequest) {
+    if (!ADMIN_READ_KEY) {
+        return false;
+    }
+
+    const headerKey = getHeaderValue(req.headers?.['x-admin-key']);
+    return headerKey === ADMIN_READ_KEY;
+}
+
+function getDateRangeForAdminRead(rawDate?: string) {
+    const date = (rawDate || '2026-03-13').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new Error('INVALID_ADMIN_DATE');
+    }
+
+    const [year, month, day] = date.split('-').map(Number);
+    const nextDay = new Date(Date.UTC(year, month - 1, day));
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    const nextDate = nextDay.toISOString().slice(0, 10);
+
+    return {
+        date,
+        from: `${date}T00:00:00-03:00`,
+        to: `${nextDate}T00:00:00-03:00`
+    };
 }
 
 async function generateAccessToken() {
@@ -275,6 +313,32 @@ async function persistOrder(capture: CaptureOrderResponse, cartItems: CartItem[]
     }
 }
 
+async function listOrdersForAdmin(rawDate?: string) {
+    const supabase = getSupabaseAdminClient();
+
+    if (!supabase) {
+        throw new Error('SUPABASE_ADMIN_UNAVAILABLE');
+    }
+
+    const range = getDateRangeForAdminRead(rawDate);
+    const { data, error } = await supabase
+        .from('pedidos')
+        .select('id,paypal_order_id,status,valor_total,moeda,email_cliente,criado_em')
+        .gte('criado_em', range.from)
+        .lt('criado_em', range.to)
+        .order('criado_em', { ascending: false });
+
+    if (error) {
+        throw new Error(`SUPABASE_LIST_PEDIDOS_FAILED: ${error.message}`);
+    }
+
+    return {
+        date: range.date,
+        count: data?.length || 0,
+        pedidos: data || []
+    };
+}
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -328,10 +392,23 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             return res.status(200).json(orderStatus);
         }
 
+        if (req.method === 'GET' && action === 'admin-orders') {
+            if (!isAdminAuthorized(req)) {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
+
+            const result = await listOrdersForAdmin(req.query.date);
+            return res.status(200).json(result);
+        }
+
         return res.status(405).json({ error: 'Method not allowed' });
     } catch (error: unknown) {
         if (error instanceof Error && error.message === 'EMPTY_CART') {
             return res.status(400).json({ error: 'Cart must contain at least one item' });
+        }
+
+        if (error instanceof Error && error.message === 'INVALID_ADMIN_DATE') {
+            return res.status(400).json({ error: 'date must use YYYY-MM-DD' });
         }
 
         const apiError = getAxiosError(error);

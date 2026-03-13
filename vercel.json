@@ -7,6 +7,10 @@
       "use": "@vercel/node"
     },
     {
+      "src": "api/admin-orders.ts",
+      "use": "@vercel/node"
+    },
+    {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
@@ -15,6 +19,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/admin-orders",
+      "destination": "/api/admin-orders"
+    },
     {
       "source": "/api",
       "destination": "/api/index"
