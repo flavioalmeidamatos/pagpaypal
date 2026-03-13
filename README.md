@@ -53,6 +53,21 @@ Configuracao esperada no projeto Vercel:
 - Install Command: `npm install`
 - Node.js: `20.19.x` ou superior compativel
 
+## Troubleshooting
+
+- Se o commit falhar por identidade ausente no Git:
+  - `git config --global user.name "flavioalmeidamatos"`
+  - `git config --global user.email "matos.almeida.flavio@gmail.com"`
+- Se `pwsh` nao existir no WSL, rode o deploy com `powershell.exe`.
+- O `deploy.ps1` foi preparado para carregar `.env` e `.env.local`, nesta ordem.
+- Em Windows + WSL, o script resolve `node`, `npx` e `vercel` com fallback para caminhos conhecidos.
+- Se a validacao REST do Supabase usar chave `publishable` ou `anon`, respostas `404` ou bloqueios de RLS podem ser apenas limitacoes da chave, nao falha real de schema.
+
+Referencia reutilizavel para novos projetos:
+
+- `AGENTS.md`
+- `docs/NEW_PROJECT_BASELINE.md`
+
 ## Fluxo de pagamento
 
 1. O carrinho envia os itens para `/api?action=create`.
