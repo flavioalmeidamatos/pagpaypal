@@ -47,11 +47,34 @@ interface CaptureOrderResponse {
             value?: string;
             currency_code?: string;
         };
+        payments?: {
+            captures?: Array<{
+                id?: string;
+                status?: string;
+                amount?: {
+                    value?: string;
+                    currency_code?: string;
+                };
+            }>;
+        };
     }>;
     payer?: {
         email_address?: string;
     };
+    payment_source?: {
+        paypal?: {
+            email_address?: string;
+        };
+    };
     persistenceWarning?: string;
+}
+
+interface PersistedOrderInput {
+    paypalOrderId: string;
+    status: string;
+    amount: number;
+    currency: string;
+    email: string;
 }
 
 function isCartItem(value: unknown): value is CartItem {
@@ -142,6 +165,140 @@ function getPostgresConnectionString() {
     }
 
     return SUPABASE_POOLER_URL.replace(/postgresql:\/\/([^@]+)@/, `postgresql://$1:${SUPABASE_DB_PASSWORD}@`);
+}
+
+function getCartSummary(cartItems: CartItem[]) {
+    const amount = Number(
+        cartItems
+            .reduce((sum, item) => sum + item.price * (item.quantity || 1), 0)
+            .toFixed(2)
+    );
+
+    return {
+        amount,
+        currency: 'BRL'
+    };
+}
+
+function buildPersistedOrder(capture: CaptureOrderResponse, cartItems: CartItem[]): PersistedOrderInput {
+    const cartSummary = getCartSummary(cartItems);
+    const firstUnit = capture.purchase_units?.[0];
+    const firstCapture = firstUnit?.payments?.captures?.[0];
+    const amountSource = firstCapture?.amount || firstUnit?.amount;
+
+    return {
+        paypalOrderId: capture.id || '',
+        status: capture.status || 'COMPLETED',
+        amount: Number(amountSource?.value || cartSummary.amount || 0),
+        currency: amountSource?.currency_code || cartSummary.currency,
+        email: capture.payer?.email_address || capture.payment_source?.paypal?.email_address || 'guest@example.com'
+    };
+}
+
+function isSchemaCacheError(message: string) {
+    return message.includes('schema cache') || message.includes("Could not find the table 'public.");
+}
+
+async function withPostgresClient<T>(callback: (client: Client) => Promise<T>) {
+    const connectionString = getPostgresConnectionString();
+
+    if (!connectionString) {
+        throw new Error('POSTGRES_FALLBACK_UNAVAILABLE');
+    }
+
+    const client = new Client({
+        connectionString,
+        ssl: {
+            rejectUnauthorized: false
+        },
+        connectionTimeoutMillis: 5000
+    });
+
+    await client.connect();
+
+    try {
+        return await callback(client);
+    } finally {
+        await client.end();
+    }
+}
+
+async function insertOrderViaPostgres(order: PersistedOrderInput) {
+    return withPostgresClient(async (client) => {
+        const result = await client.query(
+            `
+                insert into public.pedidos (
+                    paypal_order_id,
+                    status,
+                    valor_total,
+                    moeda,
+                    email_cliente
+                )
+                values ($1, $2, $3, $4, $5)
+                on conflict (paypal_order_id) do update
+                set
+                    status = excluded.status,
+                    valor_total = excluded.valor_total,
+                    moeda = excluded.moeda,
+                    email_cliente = excluded.email_cliente
+                returning id
+            `,
+            [order.paypalOrderId, order.status, order.amount, order.currency, order.email]
+        );
+
+        return result.rows[0]?.id as number | undefined;
+    });
+}
+
+async function insertOrderItemsViaPostgres(pedidoId: number | string, cartItems: CartItem[]) {
+    if (!cartItems.length) {
+        return;
+    }
+
+    await withPostgresClient(async (client) => {
+        await client.query('begin');
+
+        try {
+            await client.query('delete from public.pedido_itens where pedido_id = $1', [pedidoId]);
+
+            for (const item of cartItems) {
+                await client.query(
+                    `
+                        insert into public.pedido_itens (
+                            pedido_id,
+                            produto_id,
+                            nome_produto,
+                            marca_produto,
+                            categoria_produto,
+                            descricao_produto,
+                            imagem_produto,
+                            quantidade,
+                            valor_unitario,
+                            valor_total_item
+                        )
+                        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    `,
+                    [
+                        pedidoId,
+                        item.id,
+                        item.name,
+                        item.brand,
+                        item.category,
+                        item.description,
+                        item.image,
+                        item.quantity || 1,
+                        item.price,
+                        item.price * (item.quantity || 1)
+                    ]
+                );
+            }
+
+            await client.query('commit');
+        } catch (error) {
+            await client.query('rollback');
+            throw error;
+        }
+    });
 }
 
 async function generateAccessToken() {
@@ -237,7 +394,8 @@ async function captureOrder(orderID: string) {
             method: 'post',
             headers: {
                 Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                Prefer: 'return=representation'
             }
         });
         return response.data as CaptureOrderResponse;
@@ -269,31 +427,40 @@ async function getOrderStatus(orderID: string) {
 }
 
 async function persistOrder(capture: CaptureOrderResponse, cartItems: CartItem[]) {
+    const order = buildPersistedOrder(capture, cartItems);
     const supabase = getSupabaseAdminClient();
 
     if (!supabase) {
-        console.warn('[Supabase] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes. Pedido não persistido.');
+        const pedidoId = await insertOrderViaPostgres(order);
+        if (pedidoId) {
+            await insertOrderItemsViaPostgres(pedidoId, cartItems);
+        }
         return;
     }
-
-    const amount = Number(capture.purchase_units?.[0]?.amount?.value || 0);
-    const currency = capture.purchase_units?.[0]?.amount?.currency_code || 'BRL';
 
     const { data: pedido, error: pedidoError } = await supabase
         .from('pedidos')
         .insert([
             {
-                paypal_order_id: capture.id,
-                status: capture.status || 'COMPLETED',
-                valor_total: amount,
-                moeda: currency,
-                email_cliente: capture.payer?.email_address || 'guest@example.com'
+                paypal_order_id: order.paypalOrderId,
+                status: order.status,
+                valor_total: order.amount,
+                moeda: order.currency,
+                email_cliente: order.email
             }
         ])
-        .select('id')
+        .select('id,paypal_order_id')
         .single();
 
     if (pedidoError) {
+        if (isSchemaCacheError(pedidoError.message)) {
+            const pedidoId = await insertOrderViaPostgres(order);
+            if (pedidoId) {
+                await insertOrderItemsViaPostgres(pedidoId, cartItems);
+            }
+            return;
+        }
+
         console.error('[Supabase] Erro ao gravar pedido:', pedidoError);
         throw new Error(`SUPABASE_PEDIDO_FAILED: ${pedidoError.message}`);
     }
@@ -320,6 +487,11 @@ async function persistOrder(capture: CaptureOrderResponse, cartItems: CartItem[]
         .insert(itens);
 
     if (itensError) {
+        if (isSchemaCacheError(itensError.message)) {
+            await insertOrderItemsViaPostgres(pedido.id, cartItems);
+            return;
+        }
+
         console.error('[Supabase] Erro ao gravar itens do pedido:', itensError);
         throw new Error(`SUPABASE_ITENS_FAILED: ${itensError.message}`);
     }
@@ -478,17 +650,27 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
                 }
 
                 const capture = await captureOrder(orderID);
+                const cartItems = Array.isArray(cart) ? cart.filter(isCartItem) : [];
+                let finalizedOrder = capture;
+
                 if (capture.status === 'COMPLETED') {
                     try {
-                        await persistOrder(capture, Array.isArray(cart) ? cart.filter(isCartItem) : []);
+                        finalizedOrder = await getOrderStatus(orderID) as CaptureOrderResponse;
+                    } catch (statusError: unknown) {
+                        const message = statusError instanceof Error ? statusError.message : 'UNKNOWN_STATUS_ERROR';
+                        console.warn('[PayPal] Não foi possível carregar a ordem completa após captura:', message);
+                    }
+
+                    try {
+                        await persistOrder(finalizedOrder, cartItems);
                     } catch (persistError: unknown) {
                         const message = persistError instanceof Error ? persistError.message : 'UNKNOWN_PERSIST_ERROR';
                         console.error('[Supabase] Pedido pago, mas não persistido:', message);
-                        capture.persistenceWarning = message;
+                        finalizedOrder.persistenceWarning = message;
                     }
                 }
 
-                return res.status(200).json(capture);
+                return res.status(200).json(finalizedOrder);
             }
         }
 
