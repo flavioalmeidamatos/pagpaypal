@@ -10,28 +10,28 @@ export const Header = ({ onCartOpen }: HeaderProps) => {
     const { totalItems } = useCart();
 
     return (
-        <header className="sticky top-0 z-40 w-full bg-white/70 backdrop-blur-xl border-b border-gray-100">
-            <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
-                <div className="flex items-center gap-2 cursor-pointer group">
-                    <div className="h-10 w-10 bg-gray-900 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform">
-                        <Sparkles className="text-white" size={20} />
+        <header className="sticky top-0 z-40 w-full border-b border-gray-100 bg-white/70 backdrop-blur-xl">
+            <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-8">
+                <div className="group flex cursor-pointer items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-900 transition-transform group-hover:rotate-12 sm:h-10 sm:w-10">
+                        <Sparkles className="text-white" size={18} />
                     </div>
-                    <span className="text-xl font-black tracking-tighter text-gray-900">SKINCARE.CO</span>
+                    <span className="text-base font-black tracking-tighter text-gray-900 sm:text-xl">SKINCARE.CO</span>
                 </div>
 
                 <button
                     onClick={onCartOpen}
-                    className="relative p-3 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors group cursor-pointer"
+                    className="group relative rounded-full bg-gray-50 p-2.5 transition-colors hover:bg-gray-100 cursor-pointer sm:p-3"
                     aria-label={`Abrir sacola${totalItems > 0 ? ` com ${totalItems} itens` : ''}`}
                 >
-                    <ShoppingBag size={24} className="text-gray-900" />
+                    <ShoppingBag size={22} className="text-gray-900 sm:h-6 sm:w-6" />
                     <AnimatePresence>
                         {totalItems > 0 && (
                             <motion.span
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0 }}
-                                className="absolute -top-1 -right-1 h-6 w-6 bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white"
+                                className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-rose-500 text-[10px] font-bold text-white sm:h-6 sm:w-6"
                             >
                                 {totalItems}
                             </motion.span>

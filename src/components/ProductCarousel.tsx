@@ -84,7 +84,7 @@ export function ProductCarousel({ products, onSelect, selectedId }: ProductCarou
             {/* Lista de produtos */}
             <motion.div
                 ref={containerRef}
-                className="flex gap-6 sm:gap-8 overflow-x-auto px-10 sm:px-16 py-8 sm:py-12 no-scrollbar cursor-grab active:cursor-grabbing scroll-smooth"
+                className="flex gap-4 sm:gap-8 overflow-x-auto px-8 sm:px-16 py-6 sm:py-12 no-scrollbar cursor-grab active:cursor-grabbing scroll-smooth"
             >
                 {products.map((product) => (
                     <ProductCard

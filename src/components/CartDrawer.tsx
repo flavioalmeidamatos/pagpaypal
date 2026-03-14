@@ -30,6 +30,11 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
     const paypalClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID || '').trim();
     const [successfulPayment, setSuccessfulPayment] = useState<SuccessfulPayment | null>(null);
 
+    const handleDrawerClose = () => {
+        setSuccessfulPayment(null);
+        onClose();
+    };
+
     useEffect(() => {
         const html = document.documentElement;
 
@@ -47,12 +52,6 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
         };
     }, [isOpen]);
 
-    useEffect(() => {
-        if (!isOpen) {
-            setSuccessfulPayment(null);
-        }
-    }, [isOpen]);
-
     const handleSuccessModalClose = () => {
         setSuccessfulPayment(null);
         onClose();
@@ -62,58 +61,54 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[60] flex justify-end">
-                    {/* Overlay Escurecido */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/60 backdrop-blur-[2px]"
-                        onClick={onClose}
+                        onClick={handleDrawerClose}
                     />
 
-                    {/* Drawer Principal */}
                     <motion.div
                         initial={{ x: '100%' }}
                         animate={{ x: 0 }}
                         exit={{ x: '100%' }}
                         transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-                        className="relative h-full w-full max-w-lg bg-white shadow-2xl flex flex-col z-[70]"
+                        className="relative z-[70] flex h-full w-full max-w-lg flex-col bg-white shadow-2xl"
                     >
-                        {/* Header Fixo - Elevado */}
-                        <div className="p-6 flex items-center justify-between border-b bg-white shrink-0 z-10">
+                        <div className="z-10 flex shrink-0 items-center justify-between border-b bg-white p-6">
                             <div className="flex flex-col">
-                                <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900">
+                                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
                                     <ShoppingBag size={20} className="text-rose-500" />
                                     Sua Sacola
                                 </h2>
-                                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider ml-7">
+                                <p className="ml-7 text-[11px] font-medium uppercase tracking-wider text-gray-400">
                                     {totalItems} {totalItems === 1 ? 'item' : 'itens'} selecionados
                                 </p>
                             </div>
                             <button
-                                onClick={onClose}
-                                className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-all cursor-pointer"
+                                onClick={handleDrawerClose}
+                                className="rounded-full p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
                                 aria-label="Fechar"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
-                        {/* Área de Conteúdo Rolável */}
                         <div
                             className="flex-grow overflow-y-auto overscroll-contain bg-white"
                             style={{ WebkitOverflowScrolling: 'touch' }}
                         >
-                            <div className="p-6 space-y-5">
+                            <div className="space-y-5 p-6">
                                 {items.length === 0 ? (
-                                    <div className="py-24 flex flex-col items-center justify-center text-gray-300 space-y-4">
-                                        <div className="p-6 rounded-full bg-gray-50">
+                                    <div className="flex flex-col items-center justify-center space-y-4 py-24 text-gray-300">
+                                        <div className="rounded-full bg-gray-50 p-6">
                                             <ShoppingBag size={48} strokeWidth={1} />
                                         </div>
-                                        <p className="text-sm font-medium">Sua sacola está vazia</p>
+                                        <p className="text-sm font-medium">Sua sacola estÃ¡ vazia</p>
                                         <button
-                                            onClick={onClose}
-                                            className="text-rose-500 text-xs font-bold hover:underline cursor-pointer"
+                                            onClick={handleDrawerClose}
+                                            className="text-xs font-bold text-rose-500 hover:underline cursor-pointer"
                                         >
                                             Continuar Comprando
                                         </button>
@@ -123,33 +118,33 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                         {items.map((item) => (
                                             <div
                                                 key={item.id}
-                                                className="flex gap-4 p-3 rounded-2xl border border-gray-100 hover:border-rose-100 hover:bg-rose-50/20 transition-all group/item cursor-pointer"
+                                                className="group/item flex cursor-pointer gap-4 rounded-2xl border border-gray-100 p-3 transition-all hover:border-rose-100 hover:bg-rose-50/20"
                                                 onClick={() => {
                                                     onProductSelect(item);
-                                                    onClose();
+                                                    handleDrawerClose();
                                                 }}
                                             >
                                                 <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-gray-50">
                                                     <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
                                                 </div>
-                                                <div className="flex-grow flex flex-col justify-between py-1">
+                                                <div className="flex flex-grow flex-col justify-between py-1">
                                                     <div>
-                                                        <h4 className="text-xs font-bold text-gray-900 line-clamp-1">{item.name}</h4>
-                                                        <p className="text-[10px] text-gray-400 font-medium">{item.brand}</p>
+                                                        <h4 className="line-clamp-1 text-xs font-bold text-gray-900">{item.name}</h4>
+                                                        <p className="text-[10px] font-medium text-gray-400">{item.brand}</p>
                                                     </div>
 
-                                                    <div className="flex items-center justify-between mt-auto" onClick={(e) => e.stopPropagation()}>
-                                                        <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-lg">
+                                                    <div className="mt-auto flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                                                        <div className="flex items-center gap-2 rounded-lg bg-gray-50 p-1">
                                                             <button
                                                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                                className="w-6 h-6 flex items-center justify-center rounded bg-white border border-gray-200 shadow-sm hover:border-rose-300 transition-colors cursor-pointer"
+                                                                className="flex h-6 w-6 items-center justify-center rounded border border-gray-200 bg-white shadow-sm transition-colors hover:border-rose-300 cursor-pointer"
                                                             >
                                                                 <Minus size={10} />
                                                             </button>
-                                                            <span className="text-[11px] font-bold w-4 text-center">{item.quantity}</span>
+                                                            <span className="w-4 text-center text-[11px] font-bold">{item.quantity}</span>
                                                             <button
                                                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                                className="w-6 h-6 flex items-center justify-center rounded bg-white border border-gray-200 shadow-sm hover:border-rose-300 transition-colors cursor-pointer"
+                                                                className="flex h-6 w-6 items-center justify-center rounded border border-gray-200 bg-white shadow-sm transition-colors hover:border-rose-300 cursor-pointer"
                                                             >
                                                                 <Plus size={10} />
                                                             </button>
@@ -158,7 +153,7 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                                             <p className="text-xs font-extrabold text-gray-900">{formatCurrency(item.price)}</p>
                                                             <button
                                                                 onClick={() => removeItem(item.id)}
-                                                                className="text-[9px] text-gray-400 hover:text-rose-500 font-bold uppercase tracking-tighter"
+                                                                className="text-[9px] font-bold uppercase tracking-tighter text-gray-400 hover:text-rose-500"
                                                             >
                                                                 Remover
                                                             </button>
@@ -171,17 +166,16 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                 )}
                             </div>
 
-                            {/* Seção de Resumo de Checkout */}
                             {items.length > 0 && (
-                                <div className="p-6 border-t bg-gray-50/80">
-                                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 space-y-4 mb-6">
+                                <div className="border-t bg-gray-50/80 p-6">
+                                    <div className="mb-6 space-y-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
                                         <div className="flex items-center justify-between text-xs font-semibold text-gray-500">
                                             <span>Subtotal</span>
                                             <span>{formatCurrency(subtotal)}</span>
                                         </div>
                                         <div className="h-px bg-gray-50" />
                                         <div className="flex items-center justify-between">
-                                            <span className="text-sm font-bold text-gray-900 uppercase">Total a Pagar</span>
+                                            <span className="text-sm font-bold uppercase text-gray-900">Total a Pagar</span>
                                             <span className="text-xl font-black text-gray-900">{formatCurrency(subtotal)}</span>
                                         </div>
                                     </div>
@@ -189,7 +183,7 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                     <div className="space-y-6 pt-2">
                                         {paypalClientId ? (
                                             <PayPalScriptProvider options={{ clientId: paypalClientId, ...paypalScriptOptions }}>
-                                                <div className="min-h-[180px] relative px-1">
+                                                <div className="relative min-h-[180px] px-1">
                                                     <PayPalCheckoutButton onPaymentSuccess={setSuccessfulPayment} />
                                                 </div>
                                             </PayPalScriptProvider>
@@ -201,12 +195,12 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                     </div>
 
                                     <div className="mt-8 flex flex-col items-center gap-3">
-                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                            <span className="text-[9px] font-bold text-green-700 uppercase tracking-widest">Conexão Segura Ativa</span>
+                                        <div className="flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5">
+                                            <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-green-700">ConexÃ£o Segura Ativa</span>
                                         </div>
-                                        <p className="text-[10px] text-gray-400 text-center leading-relaxed max-w-[200px]">
-                                            Seus dados estão protegidos por criptografia de ponta-a-ponta via PayPal SSL.
+                                        <p className="max-w-[200px] text-center text-[10px] leading-relaxed text-gray-400">
+                                            Seus dados estÃ£o protegidos por criptografia de ponta-a-ponta via PayPal SSL.
                                         </p>
                                     </div>
                                 </div>
@@ -235,7 +229,7 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                         </div>
                                         <h3 className="mt-5 text-2xl font-black text-gray-900">Pagamento aprovado</h3>
                                         <p className="mt-3 text-sm leading-relaxed text-gray-500">
-                                            Seu pagamento foi concluído com sucesso. Toque em OK para voltar ao menu principal.
+                                            Seu pagamento foi concluÃ­do com sucesso. Toque em OK para voltar ao menu principal.
                                         </p>
                                         {successfulPayment.orderId && (
                                             <p className="mt-4 rounded-2xl bg-gray-50 px-4 py-3 text-[11px] font-semibold tracking-wide text-gray-500">
@@ -244,7 +238,7 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                         )}
                                         {successfulPayment.payerEmail && (
                                             <p className="mt-3 text-xs text-gray-400">
-                                                Confirmação vinculada a {successfulPayment.payerEmail}
+                                                ConfirmaÃ§Ã£o vinculada a {successfulPayment.payerEmail}
                                             </p>
                                         )}
                                         <button

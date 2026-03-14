@@ -29,13 +29,13 @@ export function ProductDetails({ product, onClose }: ProductDetailsProps) {
                     >
                         <button
                             onClick={onClose}
-                            className="absolute right-6 top-6 z-10 p-2 text-gray-400 hover:text-gray-900 cursor-pointer"
+                            className="absolute right-4 top-4 z-10 p-2 text-gray-400 hover:text-gray-900 cursor-pointer sm:right-6 sm:top-6"
                         >
                             <X size={24} />
                         </button>
 
                         <div className="grid grid-cols-1 md:grid-cols-2">
-                            <div className="h-[400px] w-full bg-gray-50 md:h-[600px]">
+                            <div className="h-[280px] w-full bg-gray-50 sm:h-[400px] md:h-[600px]">
                                 <img
                                     src={product.image}
                                     alt={product.name}
@@ -43,33 +43,33 @@ export function ProductDetails({ product, onClose }: ProductDetailsProps) {
                                 />
                             </div>
 
-                            <div className="flex flex-col p-8 md:p-12">
-                                <p className="text-sm font-bold tracking-[0.2em] text-rose-500 uppercase">
+                            <div className="flex flex-col p-5 sm:p-8 md:p-12">
+                                <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-500 sm:text-sm sm:tracking-[0.2em]">
                                     {product.brand}
                                 </p>
-                                <h2 className="mt-2 text-3xl font-bold text-gray-900 md:text-4xl">
+                                <h2 className="mt-2 text-2xl font-bold text-gray-900 sm:text-3xl md:text-4xl">
                                     {product.name}
                                 </h2>
-                                <span className="mt-4 inline-block rounded-full bg-gray-100 px-4 py-1 text-xs font-semibold text-gray-600 w-fit">
+                                <span className="mt-3 inline-block w-fit rounded-full bg-gray-100 px-4 py-1 text-[11px] font-semibold text-gray-600 sm:mt-4 sm:text-xs">
                                     {product.category}
                                 </span>
 
-                                <div className="mt-8 flex-grow">
-                                    <h4 className="text-sm font-bold text-gray-900 uppercase">Descrição</h4>
-                                    <p className="mt-2 text-lg leading-relaxed text-gray-600">
+                                <div className="mt-6 flex-grow sm:mt-8">
+                                    <h4 className="text-xs font-bold uppercase text-gray-900 sm:text-sm">DescriÃ§Ã£o</h4>
+                                    <p className="mt-2 text-base leading-relaxed text-gray-600 sm:text-lg">
                                         {product.description}
                                     </p>
                                 </div>
 
-                                <div className="mt-12 flex items-center justify-between">
-                                    <div className="text-3xl font-bold text-gray-900">{formatCurrency(product.price)}</div>
+                                <div className="mt-8 flex flex-col gap-4 sm:mt-12 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="text-2xl font-bold text-gray-900 sm:text-3xl">{formatCurrency(product.price)}</div>
                                     <motion.button
                                         whileTap={{ scale: 0.95 }}
                                         onClick={() => {
                                             addItem(product);
                                             onClose();
                                         }}
-                                        className="flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-bold text-white transition-all hover:bg-gray-800 cursor-pointer whitespace-nowrap h-fit"
+                                        className="flex h-fit w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-gray-800 cursor-pointer whitespace-nowrap sm:w-auto sm:px-5"
                                     >
                                         <ShoppingBag size={18} />
                                         <span>Adicionar ao Carrinho</span>
