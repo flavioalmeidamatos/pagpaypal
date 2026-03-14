@@ -55,7 +55,7 @@ export function ProductDetails({ product, onClose }: ProductDetailsProps) {
                                 </span>
 
                                 <div className="mt-6 flex-grow sm:mt-8">
-                                    <h4 className="text-xs font-bold uppercase text-gray-900 sm:text-sm">DescriÃ§Ã£o</h4>
+                                    <h4 className="text-xs font-bold uppercase text-gray-900 sm:text-sm">Descrição</h4>
                                     <p className="mt-2 text-base leading-relaxed text-gray-600 sm:text-lg">
                                         {product.description}
                                     </p>

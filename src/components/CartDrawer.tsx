@@ -1,4 +1,4 @@
-import { PayPalScriptProvider } from "@paypal/react-paypal-js";
+import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ShoppingBag, X, Plus, Minus } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -105,7 +105,7 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                         <div className="rounded-full bg-gray-50 p-6">
                                             <ShoppingBag size={48} strokeWidth={1} />
                                         </div>
-                                        <p className="text-sm font-medium">Sua sacola estÃ¡ vazia</p>
+                                        <p className="text-sm font-medium">Sua sacola está vazia</p>
                                         <button
                                             onClick={handleDrawerClose}
                                             className="text-xs font-bold text-rose-500 hover:underline cursor-pointer"
@@ -197,10 +197,10 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                     <div className="mt-8 flex flex-col items-center gap-3">
                                         <div className="flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5">
                                             <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
-                                            <span className="text-[9px] font-bold uppercase tracking-widest text-green-700">ConexÃ£o Segura Ativa</span>
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-green-700">Conexão Segura Ativa</span>
                                         </div>
                                         <p className="max-w-[200px] text-center text-[10px] leading-relaxed text-gray-400">
-                                            Seus dados estÃ£o protegidos por criptografia de ponta-a-ponta via PayPal SSL.
+                                            Seus dados estão protegidos por criptografia de ponta a ponta via PayPal SSL.
                                         </p>
                                     </div>
                                 </div>
@@ -229,7 +229,7 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                         </div>
                                         <h3 className="mt-5 text-2xl font-black text-gray-900">Pagamento aprovado</h3>
                                         <p className="mt-3 text-sm leading-relaxed text-gray-500">
-                                            Seu pagamento foi concluÃ­do com sucesso. Toque em OK para voltar ao menu principal.
+                                            Seu pagamento foi concluído com sucesso. Toque em OK para voltar ao menu principal.
                                         </p>
                                         {successfulPayment.orderId && (
                                             <p className="mt-4 rounded-2xl bg-gray-50 px-4 py-3 text-[11px] font-semibold tracking-wide text-gray-500">
@@ -238,7 +238,7 @@ export function CartDrawer({ isOpen, onClose, onProductSelect }: CartDrawerProps
                                         )}
                                         {successfulPayment.payerEmail && (
                                             <p className="mt-3 text-xs text-gray-400">
-                                                ConfirmaÃ§Ã£o vinculada a {successfulPayment.payerEmail}
+                                                Confirmação vinculada a {successfulPayment.payerEmail}
                                             </p>
                                         )}
                                         <button

@@ -16,7 +16,7 @@ export const Header = ({ onCartOpen }: HeaderProps) => {
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-900 transition-transform group-hover:rotate-12 sm:h-10 sm:w-10">
                         <Sparkles className="text-white" size={18} />
                     </div>
-                    <span className="text-base font-black tracking-tighter text-gray-900 sm:text-xl">SKINCARE.CO</span>
+                    <span className="text-base font-black tracking-tighter text-gray-900 sm:text-xl">SKINCARE.CO - versão: PayPal</span>
                 </div>
 
                 <button

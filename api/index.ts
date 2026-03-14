@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import { Client } from 'pg';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { CartItem } from '../src/types/product';
+import type { CartItem } from './types.js';
 
 const PAYPAL_CLIENT_ID = (process.env.PAYPAL_CLIENT_ID || '').trim();
 const PAYPAL_CLIENT_SECRET = (process.env.PAYPAL_CLIENT_SECRET || '').trim();

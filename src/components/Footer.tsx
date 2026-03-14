@@ -6,9 +6,9 @@ export const Footer = () => {
             <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 text-center sm:px-8 md:flex-row md:text-left">
                 <div className="flex items-center gap-2">
                     <Sparkles className="text-gray-900" size={20} />
-                    <span className="text-lg font-black tracking-tighter text-gray-900 uppercase">Skincare.co</span>
+                    <span className="text-lg font-black tracking-tighter text-gray-900 uppercase">Skincare.co - versão: PayPal</span>
                 </div>
-                <p className="text-sm text-gray-400">Â© 2026 Skincare Co. Todos os direitos reservados.</p>
+                <p className="text-sm text-gray-400">© 2026 Skincare Co. Todos os direitos reservados.</p>
             </div>
         </footer>
     );
